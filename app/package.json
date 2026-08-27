@@ -1,6 +1,6 @@
 {
   "name": "kana-flashcards",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "description": "Offline flashcards for learning Japanese Hiragana and Katakana. Android, iOS, and Web from one codebase.",
