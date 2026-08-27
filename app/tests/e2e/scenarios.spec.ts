@@ -300,3 +300,33 @@ test('V10 — the quiz is timed silently and the time appears only in the result
   expect(seconds).toBeGreaterThan(0);
   expect(seconds).toBeLessThanOrEqual(Math.ceil(wallClock / 1000) + 2);
 });
+
+test('V11 — Enter on the results screen starts another round', async ({ page }) => {
+  await page.goto('/');
+  await selectOnly(page, ['あ 5 kana']);
+  await page.getByRole('button', { name: '5', exact: true }).click();
+  await page.getByRole('button', { name: 'Start quiz' }).click();
+
+  const finishQuiz = async () => {
+    for (let i = 0; i < 5; i += 1) {
+      await page.getByLabel(/Type the/).fill('zzz');
+      await page.getByLabel(/Type the/).press('Enter');
+      await page.getByRole('button', { name: i === 4 ? 'See results' : 'Next card' }).click();
+    }
+    await expect(page.getByRole('heading', { name: 'Quiz complete' })).toBeVisible();
+  };
+
+  await finishQuiz();
+
+  // Enter with nothing focused restarts, so a keyboard run never needs the mouse.
+  await page.locator('body').press('Enter');
+  await expect(page.getByText(/Question 1 \/ 5/)).toBeVisible();
+  await expect(page.getByText('✓ 0')).toBeVisible();
+
+  // A focused control keeps its own Enter: "Back to home" must go home, not restart.
+  await finishQuiz();
+  await page.getByRole('button', { name: 'Back to home' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: 'Start quiz' })).toBeVisible();
+  await expect(page.getByText(/Question 1 \/ 5/)).toBeHidden();
+});

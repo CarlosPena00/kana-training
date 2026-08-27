@@ -329,6 +329,9 @@ third try, and confirm the answer was never revealed in between and the card sco
   computed across every card in the quiz.
 - **FR-050**: Restarting with Practice Again MUST reset the clock rather than accumulating time
   across runs, and an abandoned quiz MUST record no time at all.
+- **FR-051**: On the results screen, pressing Enter MUST start another round with the same
+  configuration, so a keyboard session never needs a pointing device. A focused control MUST keep
+  its own Enter — activating "Back to home" with the keyboard MUST go home rather than restart.
 - **FR-034**: The results screen MUST offer restarting with the same configuration and returning to the
   configuration screen.
 

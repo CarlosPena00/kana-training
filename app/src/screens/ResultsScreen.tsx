@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuiz } from '../state/QuizContext';
 import { scoreSession } from '../engine/score';
 import { formatDuration, formatPerCard } from '../engine/duration';
@@ -6,6 +7,26 @@ import './ResultsScreen.css';
 export function ResultsScreen() {
   const { state, dispatch } = useQuiz();
   const session = state.session;
+
+  /**
+   * Enter starts another round, so a keyboard run never has to reach for the mouse: Enter answers
+   * a card, Enter advances, Enter goes again.
+   *
+   * A focused control keeps its own Enter — otherwise tabbing to "Back to home" and pressing Enter
+   * would both navigate home and start a quiz. Key repeat is ignored so holding Enter at the end
+   * of the last card cannot restart immediately.
+   */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter' || event.repeat) return;
+      if ((event.target as HTMLElement | null)?.closest('button, a, input, textarea, select')) return;
+      event.preventDefault();
+      dispatch({ type: 'practice-again', now: performance.now() });
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [dispatch]);
+
   if (!session) return null;
 
   const score = scoreSession(session);
@@ -87,6 +108,11 @@ export function ResultsScreen() {
           Back to home
         </button>
       </div>
+
+      {/* Only shown where there is a physical keyboard to press. */}
+      <p className="results__shortcut muted">
+        Press <kbd>Enter</kbd> to practice again
+      </p>
     </section>
   );
 }
