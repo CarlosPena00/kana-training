@@ -18,6 +18,11 @@ app/coverage/
 .env.*
 !.env.example
 
+# Built release artifacts — reproducible from a tagged commit, so not worth versioning.
+# The folder's README stays tracked so the process is documented where the builds land.
+release/*
+!release/README.md
+
 # Signing secrets — never commit an upload key or its passwords
 app/android/keystore.properties
 *.jks
