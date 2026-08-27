@@ -132,7 +132,7 @@ export function ConfigScreen() {
       <button
         type="button"
         className="button button--primary button--large"
-        onClick={() => dispatch({ type: 'start' })}
+        onClick={() => dispatch({ type: 'start', now: performance.now() })}
         disabled={!validation.ok}
         aria-describedby={state.error ? 'config-error' : undefined}
       >

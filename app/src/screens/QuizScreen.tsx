@@ -54,7 +54,7 @@ export function QuizScreen() {
             key={`${session.currentIndex}-${submissions.length}`}
             expectsKana={question.direction === 'romaji-to-kana'}
             disabled={false}
-            onSubmit={(raw) => dispatch({ type: 'submit', raw })}
+            onSubmit={(raw) => dispatch({ type: 'submit', raw, now: performance.now() })}
           />
         </>
       )}

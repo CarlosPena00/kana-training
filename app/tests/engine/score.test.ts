@@ -24,7 +24,15 @@ const sessionWith = (outcomes: readonly Outcome[]): QuizSession => {
     const submissions = [...Array<string>(attempt - 1).fill('zzz'), expected];
     return { questionIndex, submissions, isCorrect: true };
   });
-  return { configuration, questions, currentIndex: outcomes.length - 1, answers, status: 'complete' };
+  return {
+    configuration,
+    questions,
+    currentIndex: outcomes.length - 1,
+    answers,
+    status: 'complete',
+    startedAt: 0,
+    completedAt: null,
+  };
 };
 
 describe('scoreSession (FR-032, FR-033a)', () => {
@@ -109,7 +117,15 @@ describe('a card still open for retries', () => {
       // Wrong once, two attempts still to go — not a miss yet.
       { questionIndex: 1, submissions: ['zzz'], isCorrect: false },
     ];
-    return { configuration: threeAttempts, questions, currentIndex: 1, answers, status: 'active' };
+    return {
+      configuration: threeAttempts,
+      questions,
+      currentIndex: 1,
+      answers,
+      status: 'active',
+      startedAt: 0,
+      completedAt: null,
+    };
   };
 
   it('is not counted as incorrect while attempts remain', () => {
@@ -133,5 +149,42 @@ describe('a card still open for retries', () => {
     expect(score.incorrectCount).toBe(1);
     expect(score.missedKana).toHaveLength(1);
     expect(score.accuracy).toBe(50);
+  });
+});
+
+describe('quiz timing', () => {
+  const timed = (startedAt: number, completedAt: number | null, cards = 4): QuizSession => {
+    const questions = generateQuiz({ ...configuration, cardCount: cards }, mulberry32(5));
+    return {
+      configuration: { ...configuration, cardCount: cards },
+      questions,
+      currentIndex: cards - 1,
+      answers: questions.map((q, questionIndex) => ({
+        questionIndex,
+        submissions: [q.expectedAnswer],
+        isCorrect: true,
+      })),
+      status: completedAt === null ? 'active' : 'complete',
+      startedAt,
+      completedAt,
+    };
+  };
+
+  it('reports the wall-clock time from start to finish', () => {
+    expect(scoreSession(timed(1_000, 61_000)).elapsedMs).toBe(60_000);
+  });
+
+  it('averages that across every card in the quiz', () => {
+    expect(scoreSession(timed(0, 60_000, 4)).msPerCard).toBe(15_000);
+  });
+
+  it('has no timing until the quiz is complete', () => {
+    const score = scoreSession(timed(1_000, null));
+    expect(score.elapsedMs).toBeNull();
+    expect(score.msPerCard).toBeNull();
+  });
+
+  it('never reports a negative duration if the clock jumps backwards', () => {
+    expect(scoreSession(timed(10_000, 5_000)).elapsedMs).toBe(0);
   });
 });

@@ -78,6 +78,17 @@ export interface QuizSession {
   readonly currentIndex: number;
   readonly answers: readonly AnswerRecord[];
   readonly status: SessionStatus;
+  /**
+   * Milliseconds from a monotonic clock (performance.now), supplied by the caller so the reducer
+   * reads no clock of its own. Monotonic rather than wall-clock because a duration must survive
+   * an NTP correction or a DST change mid-quiz.
+   *
+   * The clock runs from the moment the quiz starts to the moment the final card is answered, and
+   * is never shown during the quiz: a visible timer turns practice into a stress test. It is
+   * revealed on the results screen instead.
+   */
+  readonly startedAt: number;
+  readonly completedAt: number | null;
 }
 
 export interface SessionScore {
@@ -95,6 +106,10 @@ export interface SessionScore {
   /** How many cards were solved on attempt 1, 2, 3 … indexed from 0. */
   readonly byAttempt: readonly number[];
   readonly missedKana: readonly Kana[];
+  /** Wall-clock time from starting the quiz to answering the last card; null until complete. */
+  readonly elapsedMs: number | null;
+  /** Average across the whole quiz, not per answered card; null until complete. */
+  readonly msPerCard: number | null;
 }
 
 export type ConfigurationError =

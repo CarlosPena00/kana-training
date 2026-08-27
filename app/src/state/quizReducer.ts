@@ -53,10 +53,10 @@ export type QuizAction =
   | { type: 'set-card-count'; cardCount: number }
   | { type: 'set-direction'; direction: DirectionSetting }
   | { type: 'set-attempts'; attemptsAllowed: AttemptsAllowed }
-  | { type: 'start'; rng?: Rng }
-  | { type: 'submit'; raw: string }
+  | { type: 'start'; rng?: Rng; now: number }
+  | { type: 'submit'; raw: string; now: number }
   | { type: 'continue' }
-  | { type: 'practice-again'; rng?: Rng }
+  | { type: 'practice-again'; rng?: Rng; now: number }
   | { type: 'go-home' }
   | { type: 'abandon' };
 
@@ -65,7 +65,7 @@ function reconfigure(state: QuizState, configuration: QuizConfiguration): QuizSt
   return { ...state, configuration, error: null };
 }
 
-function startSession(state: QuizState, rng: Rng): QuizState {
+function startSession(state: QuizState, rng: Rng, now: number): QuizState {
   const validation = validateConfiguration(state.configuration);
   if (!validation.ok) {
     return { ...state, status: 'configuring', session: null, error: validation.error };
@@ -77,6 +77,9 @@ function startSession(state: QuizState, rng: Rng): QuizState {
     currentIndex: 0,
     answers: [],
     status: 'active',
+    // The clock starts here and is not shown again until the results screen.
+    startedAt: now,
+    completedAt: null,
   };
   return { ...state, status: 'quizzing', session, error: null };
 }
@@ -108,7 +111,7 @@ export function quizReducer(state: QuizState, action: QuizAction): QuizState {
       return reconfigure(state, { ...state.configuration, attemptsAllowed: action.attemptsAllowed });
 
     case 'start':
-      return startSession(state, action.rng ?? defaultRng);
+      return startSession(state, action.rng ?? defaultRng, action.now);
 
     case 'submit': {
       const session = state.session;
@@ -133,7 +136,14 @@ export function quizReducer(state: QuizState, action: QuizAction): QuizState {
       const attemptsLeft = session.configuration.attemptsAllowed - submissions.length;
       const status = !isCorrect && attemptsLeft > 0 ? 'active' : 'awaiting-continue';
 
-      return { ...state, session: { ...session, answers, status } };
+      // The clock stops on the final answer, not when the learner leaves the feedback panel
+      // (FR-048). Every other card's feedback dwell ends when the learner moves on; the last
+      // card's has no upper bound, so counting it would let an abandoned screen inflate the total.
+      const isFinalCard = session.currentIndex === session.questions.length - 1;
+      const completedAt =
+        status === 'awaiting-continue' && isFinalCard ? action.now : session.completedAt;
+
+      return { ...state, session: { ...session, answers, status, completedAt } };
     }
 
     case 'continue': {
@@ -148,7 +158,7 @@ export function quizReducer(state: QuizState, action: QuizAction): QuizState {
     }
 
     case 'practice-again':
-      return startSession(state, action.rng ?? defaultRng);
+      return startSession(state, action.rng ?? defaultRng, action.now);
 
     case 'go-home':
     case 'abandon':

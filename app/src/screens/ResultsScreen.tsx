@@ -1,5 +1,6 @@
 import { useQuiz } from '../state/QuizContext';
 import { scoreSession } from '../engine/score';
+import { formatDuration, formatPerCard } from '../engine/duration';
 import './ResultsScreen.css';
 
 export function ResultsScreen() {
@@ -30,6 +31,19 @@ export function ResultsScreen() {
         <span className="results__correct">✓ Correct: {score.correctCount}</span>
         <span className="results__incorrect">✕ Incorrect: {score.incorrectCount}</span>
       </p>
+
+      {score.elapsedMs !== null && score.msPerCard !== null && (
+        <dl className="results__timing">
+          <div className="results__timing-item">
+            <dt>Total time</dt>
+            <dd>{formatDuration(score.elapsedMs)}</dd>
+          </div>
+          <div className="results__timing-item">
+            <dt>Per card</dt>
+            <dd>{formatPerCard(score.msPerCard)}</dd>
+          </div>
+        </dl>
+      )}
 
       {multipleAttempts && score.correctCount > 0 && (
         <dl className="results__attempts">
@@ -65,7 +79,7 @@ export function ResultsScreen() {
         <button
           type="button"
           className="button button--primary button--large"
-          onClick={() => dispatch({ type: 'practice-again' })}
+          onClick={() => dispatch({ type: 'practice-again', now: performance.now() })}
         >
           Practice again
         </button>

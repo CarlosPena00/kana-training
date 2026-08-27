@@ -251,3 +251,52 @@ test('SC-004 — feedback renders within 100 ms of submitting', async ({ page })
   console.log(`  feedback latency: ${elapsed.toFixed(1)} ms`);
   expect(elapsed).toBeLessThan(100);
 });
+
+test('V10 — the quiz is timed silently and the time appears only in the results', async ({ page }) => {
+  await page.goto('/');
+  await selectOnly(page, ['あ 5 kana']);
+  await page.getByRole('radio', { name: 'Kana → Romaji' }).locator('..').click();
+  await page.getByRole('button', { name: '5', exact: true }).click();
+
+  // Captured before the click, because the app starts its clock on the click itself.
+  const started = Date.now();
+  await page.getByRole('button', { name: 'Start quiz' }).click();
+  // Wait for the quiz to actually render: <main> is persistent across screens, so reading it too
+  // early would assert against the configuration screen and pass for the wrong reason.
+  await expect(page.getByText(/Question 1 \/ 5/)).toBeVisible();
+
+  const showsNoTimer = async (where: string) => {
+    const text = (await page.locator('main').innerText()).toLowerCase();
+    expect(text, `elapsed time leaked onto ${where}`).not.toMatch(/\d+\s*(s|sec|second|min)\b/);
+    expect(text, `timing label leaked onto ${where}`).not.toContain('total time');
+    expect(text, `timing label leaked onto ${where}`).not.toContain('per card');
+  };
+
+  await showsNoTimer('the question screen');
+
+  for (let i = 0; i < 5; i += 1) {
+    // A little think-time per card: without it the whole quiz finishes in under a second, and the
+    // test cannot tell a working clock from one stuck at zero.
+    await page.waitForTimeout(250);
+    await page.getByLabel(/Type the/).fill('zzz');
+    await page.getByLabel(/Type the/).press('Enter');
+    // Spec acceptance scenario 1 covers the feedback panel as well as the card.
+    await showsNoTimer('the feedback panel');
+    await page.getByRole('button', { name: i === 4 ? 'See results' : 'Next card' }).click();
+  }
+  const wallClock = Date.now() - started;
+
+  await expect(page.getByRole('heading', { name: 'Quiz complete' })).toBeVisible();
+  await expect(page.getByText('Total time')).toBeVisible();
+  await expect(page.getByText('Per card')).toBeVisible();
+
+  const totalText = (await page.locator('.results__timing-item').first().innerText()).split('\n')[1] ?? '';
+  const seconds = /^(\d+):(\d{2})$/.test(totalText)
+    ? Number(totalText.split(':')[0]) * 60 + Number(totalText.split(':')[1])
+    : Number.parseFloat(totalText);
+
+  expect(Number.isNaN(seconds), `could not parse "${totalText}"`).toBe(false);
+  // Bounded on both sides: a clock stuck at zero must fail, and so must one that over-reports.
+  expect(seconds).toBeGreaterThan(0);
+  expect(seconds).toBeLessThanOrEqual(Math.ceil(wallClock / 1000) + 2);
+});

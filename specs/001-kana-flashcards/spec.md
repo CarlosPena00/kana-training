@@ -130,6 +130,28 @@ reflects the last-used settings.
 
 ---
 
+### User Story 6 - See how long the practice took (Priority: P4)
+
+A learner finishing a set wants to know how long it took and how quickly they were answering, to
+compare against their last run — but does not want a clock ticking at them while they think.
+
+**Why this priority**: It adds a useful measure to a session that already works without it, and it
+must not disturb the practice itself.
+
+**Independent Test**: Run a quiz, confirm no elapsed time is visible on any card, and confirm the
+results screen reports both a total and a per-card average.
+
+**Acceptance Scenarios**:
+
+1. **Given** a quiz is running, **When** the learner looks at any card or feedback panel, **Then**
+   no elapsed time is shown anywhere.
+2. **Given** the learner answers the last card, **When** the results screen appears, **Then** it
+   shows the total time taken and the average time per card.
+3. **Given** the learner chooses Practice Again, **When** the new quiz finishes, **Then** its time
+   covers only the new run.
+
+---
+
 ### User Story 5 - Get another try before seeing the answer (Priority: P3)
 
 A learner who mistypes, or who nearly knows a kana, wants a second chance rather than being shown
@@ -301,6 +323,12 @@ third try, and confirm the answer was never revealed in between and the card sco
   its correct answer. When every answer was correct, the list MUST be omitted rather than shown empty.
 - **FR-033b**: When more than one attempt was allowed, the results screen MUST show how many cards
   were solved on each attempt, so a fractional score is explainable rather than surprising.
+- **FR-048**: The app MUST time each quiz from the moment it starts to the moment the last card is
+  answered, and MUST NOT display elapsed time at any point during the quiz.
+- **FR-049**: The results screen MUST show the total time taken and the average time per card,
+  computed across every card in the quiz.
+- **FR-050**: Restarting with Practice Again MUST reset the clock rather than accumulating time
+  across runs, and an abandoned quiz MUST record no time at all.
 - **FR-034**: The results screen MUST offer restarting with the same configuration and returning to the
   configuration screen.
 
@@ -339,7 +367,8 @@ third try, and confirm the answer was never revealed in between and the card sco
   kana pool, card count, direction, and how many attempts each card allows.
 - **Quiz Question**: One card in a session — the kana it is based on, the direction assigned to it, the
   prompt shown, and the expected answer.
-- **Quiz Session**: One run through a generated set of questions — the questions, current position,
+- **Quiz Session**: One run through a generated set of questions — its start and completion
+  timestamps, the questions, current position,
   one answer record per question holding every submission made against it, per-question outcomes
   retained until the session ends (so the results screen can list the misses), correct and incorrect
   counts, and whether it is in progress or complete.
@@ -369,6 +398,8 @@ third try, and confirm the answer was never revealed in between and the card sco
   — that is, they can say what the correct answer was after seeing the feedback.
 - **SC-008**: An invalid configuration (no kana selected, or more cards than available) is never able to
   start a quiz, and in every such case the learner is told what to change.
+- **SC-012**: No elapsed time is visible anywhere during a quiz, and both the total and the
+  per-card average appear on the results screen once it finishes.
 - **SC-010**: In three-attempt mode, the correct answer is never visible before the final allowed
   attempt is spent — verified for every direction setting.
 - **SC-011**: A one-attempt quiz produces exactly the same score it produced before the attempts
@@ -406,4 +437,10 @@ third try, and confirm the answer was never revealed in between and the card sco
   familiar convention and keeps the credit fractions (1, ½, ⅓) legible on the results screen.
 - **Credit is per card, not per quiz**: Partial credit changes the score, never the correct/incorrect
   counts — a card solved on the third try is still a card the learner got right.
+- **Timing is wall-clock**: the quiz clock runs continuously from start to finish, including the
+  time spent reading feedback. It measures how long a practice session took, not pure answering
+  speed, and it is deliberately hidden while the quiz is running — a visible timer turns practice
+  into a stress test.
+- **Per card is an average**: total time divided by the number of cards in the quiz. Individual
+  cards are not timed separately.
 - **Content language**: The interface is in English; the learning content is Japanese kana.

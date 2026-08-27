@@ -40,6 +40,12 @@ export function scoreSession(session: QuizSession): SessionScore {
     .map((record) => session.questions[record.questionIndex]?.kana)
     .filter((kana): kana is Kana => kana !== undefined);
 
+  // Timing is only meaningful once the quiz is over — a part-finished session has no total.
+  const elapsedMs =
+    session.completedAt === null ? null : Math.max(session.completedAt - session.startedAt, 0);
+  const msPerCard =
+    elapsedMs === null || session.questions.length === 0 ? null : elapsedMs / session.questions.length;
+
   return {
     correctCount: correct.length,
     incorrectCount: answered.length - correct.length,
@@ -47,5 +53,7 @@ export function scoreSession(session: QuizSession): SessionScore {
     accuracy: answered.length === 0 ? 0 : Math.round((points / answered.length) * 100),
     byAttempt,
     missedKana,
+    elapsedMs,
+    msPerCard,
   };
 }

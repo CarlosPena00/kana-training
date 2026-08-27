@@ -123,7 +123,15 @@ interface SessionScore {
   accuracy: number;      // whole percent, 0-100, from points; 0 when nothing is resolved
   byAttempt: number[];   // cards solved on attempt 1, 2, 3 … indexed from 0
   missedKana: Kana[];    // never-correct cards, in the order they appeared; [] on a perfect run
+  elapsedMs: number | null;   // wall clock, start to last answer; null until complete
+  msPerCard: number | null;   // elapsedMs / questions.length; null until complete
 }
+```
+
+```ts
+// duration.ts — pure formatting, reads no clock
+function formatDuration(ms: number): string;  // "42s" under a minute, "1:23" above
+function formatPerCard(ms: number): string;   // "8.3s" under ten seconds, "12s" above
 ```
 
 - Derived from `session.answers` on demand — never a stored counter that can drift from the records.
@@ -159,4 +167,6 @@ interface SessionScore {
 | Partial credit | 1 / ½ / ⅓ per attempt; nothing for a never-correct card; a one-attempt quiz scores as a plain tally | FR-046, SC-011 |
 | Open cards | A card with attempts left counts as neither correct nor incorrect and is out of the denominator | FR-047 |
 | Attempt breakdown | `byAttempt` tallies cards solved on each attempt | FR-033b |
+| Timing | Elapsed and per-card are null until complete, never negative if the clock jumps back | FR-048, FR-049 |
+| Duration format | Seconds under a minute, m:ss above, one decimal per card under ten seconds | FR-049 |
 | Purity | No file in `app/src/engine/` imports from `react`, `../screens`, `../components`, or `../state` | Principle IV |

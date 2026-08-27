@@ -123,3 +123,33 @@
   font-weight: 500;
   color: var(--color-text-muted);
 }
+
+.results__timing {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.results__timing-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.results__timing dt {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.results__timing dd {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  /* Digits line up between the two columns rather than jittering. */
+  font-variant-numeric: tabular-nums;
+}

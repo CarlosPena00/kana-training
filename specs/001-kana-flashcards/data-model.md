@@ -142,6 +142,8 @@ One run through a generated set.
 | `currentIndex` | `number` | 0-based. `currentIndex + 1` is shown to the learner (FR-019). |
 | `answers` | `AnswerRecord[]` | One per answered question, in order. Retained for the whole session so results can list misses (FR-033a). |
 | `status` | `'configuring' \| 'active' \| 'awaiting-continue' \| 'complete'` | See transitions below. |
+| `startedAt` | `number` | Epoch ms, stamped when the quiz starts (FR-048). |
+| `completedAt` | `number \| null` | Epoch ms, stamped when the last card is answered; null until then. |
 
 ### AnswerRecord
 
@@ -170,6 +172,8 @@ Computed from the **resolved** records only:
 - `byAttempt` — how many cards were solved on attempt 1, 2, 3 … indexed from 0 (FR-033b).
 - `missedKana` — the `Kana` entries whose records are `isCorrect: false`, in the order they appeared
   (FR-033a).
+- `elapsedMs` / `msPerCard` — wall-clock total and its average across every card; both `null` until
+  the session completes, since a part-finished quiz has no total (FR-049).
 
 ### State transitions
 
