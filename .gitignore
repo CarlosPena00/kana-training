@@ -1,0 +1,38 @@
+.specify/*
+.claude/skills/spec*
+
+# Node / Vite
+app/node_modules/
+app/dist/
+app/dev-dist/
+app/*.log
+app/.env*
+
+# Test output
+app/test-results/
+app/playwright-report/
+app/coverage/
+
+# Signing secrets — never commit an upload key or its passwords
+app/android/keystore.properties
+*.jks
+*.keystore
+
+# Capacitor native build output (the platform projects themselves stay committed)
+app/android/app/build/
+app/android/build/
+app/android/.gradle/
+app/android/local.properties
+app/ios/App/Pods/
+app/ios/App/build/
+app/ios/DerivedData/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Universal
+.DS_Store
+Thumbs.db
+*.swp

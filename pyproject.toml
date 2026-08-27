@@ -1,0 +1,17 @@
+[project]
+name = "kana-training"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Carlos Pena", email = "chcp@cin.ufpe.br" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+kana-training = "kana_training:main"
+
+[build-system]
+requires = ["uv_build>=0.12.3,<0.13.0"]
+build-backend = "uv_build"
