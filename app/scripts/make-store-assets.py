@@ -67,8 +67,12 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     print("Play listing graphics:")
     # The 512 store icon must be a plain square: no transparency, no rounded corners — Play
-    # applies its own mask.
-    icons.render_mark(512, radius_ratio=0.0, path=OUT / "play-icon-512.png")
+    # applies its own mask. Flattened to RGB so there is no alpha channel at all, which Play's
+    # design spec asks for.
+    icon = icons.render_mark(512, radius_ratio=0.0)
+    icon_path = OUT / "play-icon-512.png"
+    icon.convert("RGB").save(icon_path, "PNG", optimize=True)
+    print(f"  {icon_path.relative_to(ROOT)}  512x512 RGB  {icon_path.stat().st_size / 1024:.1f} KB")
     feature_graphic(OUT / "play-feature-graphic.png")
     return 0
 
