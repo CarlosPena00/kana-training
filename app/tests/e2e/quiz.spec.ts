@@ -136,3 +136,57 @@ test('every interactive control meets the 44px touch target (FR-042)', async ({ 
   });
   expect(undersized).toEqual([]);
 });
+
+test('the answer field survives the whole quiz without being remounted (keyboard stability)', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start quiz' }).click();
+
+  // Tag the actual DOM node. If React ever unmounts or re-keys the input, the tag goes with it —
+  // and on Android that is exactly what tears the soft keyboard down and reflows the layout
+  // between every card.
+  await page.evaluate(() => {
+    (document.getElementById('answer-input') as HTMLElement & { dataset: DOMStringMap }).dataset['persisted'] = 'yes';
+  });
+
+  const stillTagged = () =>
+    page.evaluate(() => document.getElementById('answer-input')?.dataset['persisted'] === 'yes');
+
+  for (let card = 1; card <= 3; card += 1) {
+    await page.getByLabel(/Type the/).fill('zzz');
+    await page.getByLabel(/Type the/).press('Enter');
+
+    // Present, untouched, and still holding focus while feedback is showing — losing focus to the
+    // button is what drops the Android keyboard and reflows the layout.
+    expect(await stillTagged(), `input was remounted showing feedback on card ${card}`).toBe(true);
+    await expect(page.locator('#answer-input')).toBeFocused();
+
+    await page.getByRole('button', { name: 'Next card' }).click();
+    expect(await stillTagged(), `input was remounted advancing to card ${card + 1}`).toBe(true);
+  }
+
+  // Still focused and cleared, ready for the next answer.
+  await expect(page.locator('#answer-input')).toBeFocused();
+  await expect(page.getByLabel(/Type the/)).toHaveValue('');
+});
+
+test('the card area keeps a constant height from question to feedback (no reflow)', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start quiz' }).click();
+
+  const stageBox = async () => (await page.locator('.quiz__stage').boundingBox())!;
+  const inputBox = async () => (await page.locator('#answer-input').boundingBox())!;
+
+  const stageBefore = await stageBox();
+  const inputBefore = await inputBox();
+
+  await page.getByLabel(/Type the/).fill('zzz');
+  await page.getByLabel(/Type the/).press('Enter');
+  await expect(page.getByText('✕ Incorrect')).toBeVisible();
+
+  const stageAfter = await stageBox();
+  const inputAfter = await inputBox();
+
+  expect(stageAfter.height).toBe(stageBefore.height);
+  // The input must not move a single pixel when feedback appears.
+  expect(inputAfter.y).toBe(inputBefore.y);
+});

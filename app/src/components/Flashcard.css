@@ -1,15 +1,3 @@
-.flashcard {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: min(42vh, 18rem);
-  padding: var(--space-5) var(--space-4);
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-}
-
 .flashcard__prompt {
   font-size: var(--text-kana);
   font-weight: 500;
@@ -21,4 +9,22 @@
 .flashcard__prompt--romaji {
   font-size: clamp(2.5rem, 14vw, 5rem);
   letter-spacing: 0.02em;
+}
+
+.flashcard__retry {
+  margin-top: var(--space-3);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.flashcard__retry-verdict {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.flashcard__retry-answer {
+  font-weight: 600;
+  text-decoration: line-through;
+  text-decoration-color: var(--color-incorrect);
 }

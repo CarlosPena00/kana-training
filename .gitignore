@@ -13,6 +13,11 @@ app/test-results/
 app/playwright-report/
 app/coverage/
 
+# Local environment — never commit
+.env
+.env.*
+!.env.example
+
 # Signing secrets — never commit an upload key or its passwords
 app/android/keystore.properties
 *.jks
@@ -36,3 +41,4 @@ __pycache__/
 .DS_Store
 Thumbs.db
 *.swp
+.env

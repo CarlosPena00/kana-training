@@ -18,6 +18,4 @@
   border-color: var(--color-primary);
 }
 
-.answer__input:disabled {
-  opacity: 0.6;
-}
+

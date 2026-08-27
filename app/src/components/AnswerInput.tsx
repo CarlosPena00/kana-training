@@ -1,42 +1,53 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useRef, type KeyboardEvent } from 'react';
 import './AnswerInput.css';
 
 interface Props {
+  readonly value: string;
+  readonly onChange: (value: string) => void;
+  readonly onSubmit: () => void;
   readonly expectsKana: boolean;
-  readonly disabled: boolean;
-  readonly onSubmit: (raw: string) => void;
+  /** Changes on every card and every submission; refocuses the field so the keyboard stays up. */
+  readonly focusKey: string;
+  readonly actionLabel: string;
 }
 
 /**
- * A single text input with Enter-to-submit (FR-022).
+ * One input for the whole quiz, kept focused from the first card to the last so the Android soft
+ * keyboard never closes — every open and close costs a viewport resize and a full reflow.
  *
- * Kana is typed with the learner's own Japanese keyboard or IME (FR-021, research.md D1), so the
- * Enter that confirms an IME conversion must not also submit the answer. `isComposing` tells the
- * two apart; without this check every kana answer would submit half-converted.
+ * Three things are load-bearing here, each learned from measuring on a device:
+ *
+ * - It is never unmounted or re-keyed. Either one destroys the input and takes the keyboard.
+ * - It is never `readOnly` or `disabled`. Chrome will not raise the keyboard for a read-only
+ *   field, and a disabled one cannot hold focus at all.
+ * - There is no <form>. Chrome on Android dismisses the keyboard on form submission, so a real
+ *   submit closed it on the first answer and it never came back. Enter is handled on the input
+ *   and the button is a plain button.
+ * - Focus is pulled back after every submission. Tapping the button focuses it — preventing the
+ *   default on pointer-down stops that for a mouse but not for touch — so the field takes focus
+ *   back on the next commit.
+ *
+ * The value is owned by the caller, so clearing happens in the same event that advances the card
+ * rather than in an effect afterwards, which would wipe anything typed in between.
  */
-export function AnswerInput({ expectsKana, disabled, onSubmit }: Props) {
-  const [value, setValue] = useState('');
+export function AnswerInput({ value, onChange, onSubmit, expectsKana, focusKey, actionLabel }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // The caller remounts this component for each card and each attempt, so the field starts empty
-  // by construction. Clearing it from an effect instead would wipe anything typed between the
-  // render and the effect — a fast typist loses their first keystrokes.
   useEffect(() => {
-    if (!disabled) inputRef.current?.focus();
-  }, [disabled]);
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    if (disabled) return;
-    onSubmit(value);
-  };
+    inputRef.current?.focus();
+  }, [focusKey]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter' && event.nativeEvent.isComposing) event.preventDefault();
+    if (event.key !== 'Enter') return;
+    // Kana is typed with the learner's own IME (FR-021); the Enter that confirms a conversion
+    // must not also submit the answer.
+    if (event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    onSubmit();
   };
 
   return (
-    <form className="answer" onSubmit={submit}>
+    <div className="answer">
       <label className="visually-hidden" htmlFor="answer-input">
         {expectsKana ? 'Type the kana' : 'Type the romaji'}
       </label>
@@ -46,9 +57,8 @@ export function AnswerInput({ expectsKana, disabled, onSubmit }: Props) {
         className="answer__input"
         type="text"
         value={value}
-        onChange={(event) => setValue(event.target.value)}
+        onChange={(event) => onChange(event.target.value)}
         onKeyDown={handleKeyDown}
-        disabled={disabled}
         placeholder={expectsKana ? 'かな' : 'romaji'}
         lang={expectsKana ? 'ja' : 'en'}
         autoComplete="off"
@@ -57,9 +67,17 @@ export function AnswerInput({ expectsKana, disabled, onSubmit }: Props) {
         spellCheck={false}
         enterKeyHint="done"
       />
-      <button type="submit" className="button button--primary button--large" disabled={disabled}>
-        Check
+      <button
+        type="button"
+        onClick={onSubmit}
+        className="button button--primary button--large"
+        // A real tap focuses the button, which blurs the field and closes the soft keyboard —
+        // the layout then reflows twice per card. Preventing the default on pointer-down keeps
+        // focus in the input; the click still fires, so the button works exactly as before.
+        onPointerDown={(event) => event.preventDefault()}
+      >
+        {actionLabel}
       </button>
-    </form>
+    </div>
   );
 }

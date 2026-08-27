@@ -1,20 +1,9 @@
 .feedback {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-}
-
-.feedback--correct {
-  background: var(--color-correct-soft);
-  border-color: var(--color-correct);
-}
-
-.feedback--incorrect {
-  background: var(--color-incorrect-soft);
-  border-color: var(--color-incorrect);
+  align-items: center;
+  gap: var(--space-2);
+  text-align: center;
 }
 
 .feedback__verdict {
@@ -27,34 +16,29 @@
 
 .feedback__mapping {
   font-size: var(--text-2xl);
-  text-align: center;
-}
-
-.feedback__detail {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--space-2) var(--space-4);
-  margin: 0;
-}
-
-.feedback__detail dt {
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
-}
-
-.feedback__detail dd {
-  margin: 0;
-  font-size: var(--text-lg);
   font-weight: 600;
   word-break: break-word;
 }
 
+.feedback__detail {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: 1.8;
+}
+
+.feedback__submitted {
+  font-weight: 600;
+  color: var(--color-text);
+  text-decoration: line-through;
+  text-decoration-color: var(--color-incorrect);
+}
+
 .feedback__correct-answer {
+  font-weight: 700;
   color: var(--color-correct);
 }
 
 .feedback__attempt {
-  margin-top: calc(var(--space-3) * -1);
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--color-text-muted);
