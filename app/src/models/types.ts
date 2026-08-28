@@ -169,3 +169,24 @@ export interface MistakeEntry {
 
 /** At most one entry per kana per script, so bounded by the dataset at 214 (003 FR-030). */
 export type MistakeList = readonly MistakeEntry[];
+
+/**
+ * What the app can tell a learner about a wrong answer, beyond "that was wrong".
+ *
+ * A union rather than a list, deliberately: three message kinds mean an answer could plausibly
+ * produce two of them, and a learner told both "you confused two characters" and "you used the
+ * wrong romanization" has been told something false either way. A single value makes two notes
+ * impossible to express, not merely unlikely (003-style contradictions are what this guards).
+ *
+ * See specs/004-confused-kana-feedback/data-model.md.
+ */
+export type AnswerNote =
+  /** The answer was a real reading — of a different character in this card's script. */
+  | { readonly kind: 'kana-confusion'; readonly wrote: Kana; readonly wanted: Kana }
+  /**
+   * The answer used a different romanization system. Carries no Kana on purpose: naming a
+   * character is what makes a note a confusion, and this learner picked no character at all.
+   */
+  | { readonly kind: 'spelling'; readonly typed: string; readonly canonical: string }
+  /** The right character in the wrong alphabet. Both kana always share a reading. */
+  | { readonly kind: 'script'; readonly wrote: Kana; readonly wanted: Kana };

@@ -31,6 +31,22 @@ export function findKana(script: Script, kana: string): Kana | undefined {
   return BY_SCRIPT[script]?.get(kana);
 }
 
+const BY_ROMAJI: Readonly<Record<Script, ReadonlyMap<string, Kana>>> = {
+  hiragana: new Map(HIRAGANA.map((entry) => [entry.romaji, entry])),
+  katakana: new Map(KATAKANA.map((entry) => [entry.romaji, entry])),
+};
+
+/**
+ * The inverse of findKana: which character does this reading belong to?
+ *
+ * Unambiguous because romaji is unique within a script — the one-to-one guarantee asserted in
+ * tests/data/dataset.test.ts. Across scripts it is not unique (`nu` is both ぬ and ヌ), which is
+ * why the script is a parameter and never inferred.
+ */
+export function findByRomaji(script: Script, romaji: string): Kana | undefined {
+  return BY_ROMAJI[script]?.get(romaji);
+}
+
 const KNOWN_GROUP_IDS: ReadonlySet<string> = new Set(GROUPS.map((group) => group.id));
 
 export function isKnownGroupId(value: unknown): value is GroupId {

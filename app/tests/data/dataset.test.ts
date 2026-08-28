@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { GROUPS, HIRAGANA, KATAKANA, findKana, groupsForSection, kanaForScript } from '../../src/data';
+import {
+  GROUPS,
+  HIRAGANA,
+  KATAKANA,
+  findByRomaji,
+  findKana,
+  groupsForSection,
+  kanaForScript,
+} from '../../src/data';
 import type { Kana } from '../../src/models/types';
+import { ALTERNATE_SPELLINGS } from '../../src/data/alternates';
 import unicodeReference from './unicode-reference.json';
 
 /**
@@ -172,5 +181,77 @@ describe('findKana lookup (feature 003)', () => {
 
   it('returns undefined for a script value that is not one of the two literals', () => {
     expect(findKana('klingon' as never, 'ぬ')).toBeUndefined();
+  });
+});
+
+describe('findByRomaji lookup (feature 004)', () => {
+  it('resolves a reading in each script', () => {
+    expect(findByRomaji('hiragana', 'ru')).toMatchObject({ kana: 'る', romaji: 'ru' });
+    expect(findByRomaji('katakana', 'ru')).toMatchObject({ kana: 'ル', romaji: 'ru' });
+  });
+
+  it('round-trips against findKana for every entry', () => {
+    for (const entry of BOTH) {
+      expect(findByRomaji(entry.script, entry.romaji), `reverse lookup for ${entry.romaji}`).toBe(entry);
+      expect(findKana(entry.script, entry.kana)).toBe(entry);
+    }
+  });
+
+  it('keeps the two scripts apart despite shared readings', () => {
+    // `nu` is both ぬ and ヌ, which is exactly why the script is a parameter and never inferred.
+    expect(findByRomaji('hiragana', 'nu')?.kana).toBe('ぬ');
+    expect(findByRomaji('katakana', 'nu')?.kana).toBe('ヌ');
+  });
+
+  it('returns undefined for a reading that is not in the dataset', () => {
+    for (const unknown of ['si', 'tu', 'zzz', '', 'ruro']) {
+      expect(findByRomaji('hiragana', unknown), unknown).toBeUndefined();
+    }
+  });
+
+  it('returns undefined for a script value that is not one of the two literals', () => {
+    expect(findByRomaji('klingon' as never, 'ru')).toBeUndefined();
+  });
+});
+
+describe('alternate spellings (feature 004, contract cases 20-22)', () => {
+  const canonical = new Set(BOTH.map((entry) => entry.romaji));
+  const entries = Object.entries(ALTERNATE_SPELLINGS);
+
+  it('has entries to check', () => {
+    expect(entries.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * The guard this table exists to survive. `di` and `du` are the canonical readings of ぢ and づ
+   * in this dataset; a stock Kunrei-shiki table treats `di` as an alternate for じ. Adding one
+   * would tell a learner who typed the correct reading that they had misspelled it.
+   */
+  it('case 20: no alternate spelling is itself a canonical reading', () => {
+    const collisions = entries.filter(([alternate]) => canonical.has(alternate));
+    expect(collisions).toEqual([]);
+  });
+
+  it('case 21: every alternate points at a canonical reading', () => {
+    const dangling = entries.filter(([, target]) => !canonical.has(target));
+    expect(dangling).toEqual([]);
+  });
+
+  it('case 22: keys and values are lowercase and trimmed, as normalization produces', () => {
+    for (const [alternate, target] of entries) {
+      expect(alternate).toBe(alternate.trim().toLowerCase());
+      expect(target).toBe(target.trim().toLowerCase());
+    }
+  });
+
+  it('does not list readings that are better served by a kana confusion', () => {
+    // `ji` is じ and `zu` is ず — both real kana. A learner typing them should be told which
+    // character they wrote, not that they spelled something wrong.
+    expect(ALTERNATE_SPELLINGS['ji']).toBeUndefined();
+    expect(ALTERNATE_SPELLINGS['zu']).toBeUndefined();
+  });
+
+  it('never maps an alternate to itself', () => {
+    for (const [alternate, target] of entries) expect(alternate).not.toBe(target);
   });
 });
