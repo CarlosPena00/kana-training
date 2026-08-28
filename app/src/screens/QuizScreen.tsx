@@ -5,6 +5,7 @@ import { FeedbackPanel } from '../components/FeedbackPanel';
 import { ProgressBar } from '../components/ProgressBar';
 import { useQuiz } from '../state/QuizContext';
 import { scoreSession } from '../engine/score';
+import { diagnoseAnswer } from '../engine/diagnose';
 import './QuizScreen.css';
 
 export function QuizScreen() {
@@ -39,6 +40,15 @@ export function QuizScreen() {
 
   // In a correction round the answer is revealed instead of the attempt counter, and the card
   // stays open until it is typed correctly.
+  /**
+   * The answer is on screen once the attempts are spent, and always in a correction round, which
+   * reveals it inline. Diagnosis needs to know, because a note that would state a withheld answer
+   * has to be suppressed rather than merely hidden (FR-015a, FR-020b, FR-008c).
+   */
+  const answerRevealed = awaitingContinue || isCorrection;
+  const note =
+    lastSubmission === undefined ? null : diagnoseAnswer(question, lastSubmission, answerRevealed);
+
   const showRetry = !awaitingContinue && lastSubmission !== undefined && !isCorrection;
   const showCorrection = !awaitingContinue && lastSubmission !== undefined && isCorrection;
 
@@ -79,6 +89,7 @@ export function QuizScreen() {
             isCorrect={record.isCorrect}
             attemptsUsed={submissions.length}
             showAttemptCredit={!isCorrection}
+            note={note}
           />
         ) : (
           <Flashcard
@@ -91,6 +102,8 @@ export function QuizScreen() {
                 : undefined
             }
             scriptLabel={scriptLabel}
+            note={note}
+            answerRevealed={answerRevealed}
           />
         )}
       </div>

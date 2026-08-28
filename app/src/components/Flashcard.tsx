@@ -1,3 +1,5 @@
+import { AnswerNote } from './AnswerNote';
+import type { AnswerNote as Note } from '../models/types';
 import './Flashcard.css';
 
 interface Props {
@@ -19,10 +21,22 @@ interface Props {
    * is always completable and never strands a learner on a card they cannot remember.
    */
   readonly correction?: { readonly lastAnswer: string; readonly correctAnswer: string } | undefined;
+  /** What went wrong beyond "wrong" (feature 004). Shown on the open card, so a retry sees it too. */
+  readonly note?: Note | null | undefined;
+  /** False while attempts remain: the note then shows only what the learner wrote (FR-015a). */
+  readonly answerRevealed?: boolean | undefined;
 }
 
 /** The card is the visual focus of the quiz screen (FR-020). */
-export function Flashcard({ prompt, isKana, retry, scriptLabel, correction }: Props) {
+export function Flashcard({
+  prompt,
+  isKana,
+  retry,
+  scriptLabel,
+  correction,
+  note,
+  answerRevealed = false,
+}: Props) {
   return (
     <>
       <p
@@ -53,6 +67,8 @@ export function Flashcard({ prompt, isKana, retry, scriptLabel, correction }: Pr
           . Type it to continue.
         </p>
       )}
+
+      {note && <AnswerNote note={note} answerRevealed={answerRevealed} />}
 
       {retry && (
         <p className="flashcard__retry" role="status" aria-live="assertive">

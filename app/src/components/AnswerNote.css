@@ -1,0 +1,69 @@
+/* Explains a wrong answer inside the card's existing area.
+   Kept deliberately compact: the stage has a 18rem minimum but is free to grow, and growing it
+   pushes the answer input down — which is exactly what feature 001 worked to prevent so the soft
+   keyboard stays put (FR-013). Every colour resolves from a token. */
+
+.answer-note {
+  margin-top: var(--space-2);
+  text-align: center;
+  color: var(--color-text);
+}
+
+/* --- spelling and script notes: one line --- */
+
+.answer-note--spelling,
+.answer-note--script,
+.answer-note--partial {
+  font-size: var(--text-base);
+  color: var(--color-text-muted);
+}
+
+.answer-note__typed {
+  text-decoration: line-through;
+  color: var(--color-incorrect);
+}
+
+.answer-note__canonical {
+  color: var(--color-text);
+}
+
+/* --- the pair: two characters, side by side --- */
+
+.answer-note__pair {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-5);
+}
+
+.answer-note__side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 4.5rem;
+}
+
+/* Large enough to compare two shapes, small enough that two of them plus their labels still fit
+   the stage beside the rest of the feedback. */
+.answer-note__kana {
+  font-size: clamp(2rem, 10vw, 2.75rem);
+  line-height: 1.05;
+}
+
+/* The label is what says which side is which — never colour or position alone (WCAG 1.4.1). */
+.answer-note__label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.answer-note__romaji {
+  font-size: var(--text-base);
+  color: var(--color-text);
+}
+
+.answer-note--partial .answer-note__kana {
+  font-size: var(--text-2xl);
+  vertical-align: middle;
+}

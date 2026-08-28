@@ -1,5 +1,6 @@
+import { AnswerNote } from './AnswerNote';
 import './FeedbackPanel.css';
-import type { QuizQuestion } from '../models/types';
+import type { AnswerNote as Note, QuizQuestion } from '../models/types';
 
 interface Props {
   readonly question: QuizQuestion;
@@ -13,6 +14,8 @@ interface Props {
    * both be wrong and contradict the results screen, which scores that card as incorrect.
    */
   readonly showAttemptCredit?: boolean | undefined;
+  /** What went wrong beyond "wrong", when the answer was itself a real reading (feature 004). */
+  readonly note?: Note | null | undefined;
 }
 
 const ORDINAL = ['first', 'second', 'third'] as const;
@@ -30,6 +33,7 @@ export function FeedbackPanel({
   isCorrect,
   attemptsUsed,
   showAttemptCredit = true,
+  note,
 }: Props) {
   const { kana } = question;
   const attemptIndex = Math.min(attemptsUsed, ORDINAL.length) - 1;
@@ -38,11 +42,15 @@ export function FeedbackPanel({
     <div className={`feedback feedback--${isCorrect ? 'correct' : 'incorrect'}`} aria-live="assertive">
       <p className="feedback__verdict">{isCorrect ? '✓ Correct' : '✕ Incorrect'}</p>
 
-      <p className="feedback__mapping">
-        <span lang="ja">{kana.kana}</span>
-        <span aria-hidden="true"> — </span>
-        <span>{kana.romaji}</span>
-      </p>
+      {/* A confusion pair already shows both characters with their readings, so repeating the
+          mapping here would duplicate it and cost height the stage does not have to give. */}
+      {note?.kind !== 'kana-confusion' && (
+        <p className="feedback__mapping">
+          <span lang="ja">{kana.kana}</span>
+          <span aria-hidden="true"> — </span>
+          <span>{kana.romaji}</span>
+        </p>
+      )}
 
       {!isCorrect && (
         <p className="feedback__detail">
@@ -54,6 +62,8 @@ export function FeedbackPanel({
           </span>
         </p>
       )}
+
+      {note && <AnswerNote note={note} answerRevealed />}
 
       {showAttemptCredit && attemptsUsed > 1 && attemptIndex >= 0 && (
         <p className="feedback__attempt">
