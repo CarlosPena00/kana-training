@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ (API 31) backup and transfer rules.
+
+  Nothing this app stores may leave the device (003 FR-031, FR-032). Both stored values —
+  quiz preferences and the mistake list — live in the WebView's local storage, and both are
+  excluded here as well as by android:allowBackup="false" on the application element.
+
+  `allowBackup="false"` already disables cloud backup; these rules additionally cover
+  device-to-device transfer, which allowBackup does not govern on API 31+.
+
+  The mistake list is cache-grade by design: losing it on a reinstall or a new device is a normal
+  outcome, not a failure, and the app treats an absent store exactly as it treats an empty one.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

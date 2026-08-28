@@ -2,8 +2,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!--
+      Nothing this app stores may leave the device (003 FR-031, FR-032). allowBackup="false" stops
+      Android Auto Backup copying the WebView's local storage — the quiz preferences and the
+      mistake list — to the user's Google account. Removing the INTERNET permission does not cover
+      this: the backup transport is Play services, not the app.
+
+      The XML rules below additionally cover device-to-device transfer, which allowBackup does not
+      govern. A Capacitor upgrade regenerates this file and will silently restore allowBackup to
+      its default of true, so app/store/README.md carries a release-checklist item to re-verify it.
+    -->
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
