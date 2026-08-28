@@ -21,3 +21,21 @@ export function validateConfiguration(config: QuizConfiguration): ValidationResu
 
   return { ok: true, poolSize };
 }
+
+/**
+ * Answers "can this correction round start?" for both the history screen and the reducer, so the
+ * two cannot disagree — the same role validateConfiguration plays for an ordinary quiz.
+ *
+ * The pool comes from the mistake list rather than from a group selection, so there is no script
+ * or group to check: a correction round is never scoped by the selected script (003 FR-020a).
+ * Reuses the existing error values so the screens have one vocabulary for "you cannot start".
+ */
+export function validateCorrectionRound(poolSize: number, cardCount: number): ValidationResult {
+  if (poolSize === 0) return { ok: false, poolSize, error: 'NO_KANA_SELECTED' };
+  if (!Number.isInteger(cardCount)) return { ok: false, poolSize, error: 'CARD_COUNT_NOT_INTEGER' };
+  if (cardCount < 1) return { ok: false, poolSize, error: 'CARD_COUNT_TOO_LOW' };
+  // Never silently padded with kana the learner has never missed (003 FR-027).
+  if (cardCount > poolSize) return { ok: false, poolSize, error: 'CARD_COUNT_EXCEEDS_POOL' };
+
+  return { ok: true, poolSize };
+}

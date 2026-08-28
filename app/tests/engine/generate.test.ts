@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { generateQuiz } from '../../src/engine/generate';
+import { buildQuestions, generateQuiz } from '../../src/engine/generate';
 import { buildPool } from '../../src/engine/pool';
 import { mulberry32 } from '../../src/engine/rng';
-import { ALL_MAIN_GROUP_IDS } from '../../src/data';
+import { ALL_MAIN_GROUP_IDS, findKana } from '../../src/data';
 import type { DirectionSetting, GroupId, QuizConfiguration } from '../../src/models/types';
 
 const config = (over: Partial<QuizConfiguration> = {}): QuizConfiguration => ({
@@ -128,5 +128,54 @@ describe('generateQuiz — determinism (Constitution Principle IV)', () => {
     const a = generateQuiz(config({ cardCount: 15 }), constant);
     const b = generateQuiz(config({ cardCount: 15 }), constant);
     expect(a).toEqual(b);
+  });
+});
+
+describe('buildQuestions — mixed-script pools (003 FR-020a, FR-020b)', () => {
+  const MIXED = [
+    findKana('hiragana', 'ぬ')!,
+    findKana('katakana', 'ヌ')!,
+    findKana('hiragana', 'ね')!,
+    findKana('katakana', 'ネ')!,
+  ];
+
+  it('round case 1: draws from a pool spanning both scripts', () => {
+    const questions = buildQuestions(MIXED, 4, 'kana-to-romaji', mulberry32(7));
+    expect(questions).toHaveLength(4);
+    expect(new Set(questions.map((q) => q.kana.script))).toEqual(new Set(['hiragana', 'katakana']));
+  });
+
+  it('round case 1: each card carries its own script rather than a round-wide one', () => {
+    const questions = buildQuestions(MIXED, 4, 'kana-to-romaji', mulberry32(7));
+    for (const question of questions) {
+      // ぬ and ヌ share a reading, so the only thing separating them is the card's own script.
+      const expected = findKana(question.kana.script, question.kana.kana);
+      expect(expected).toBeDefined();
+      expect(question.expectedAnswer).toBe(expected!.romaji);
+    }
+  });
+
+  it('round case 2: is deterministic for a seeded rng', () => {
+    const a = buildQuestions(MIXED, 4, 'both', mulberry32(11));
+    const b = buildQuestions(MIXED, 4, 'both', mulberry32(11));
+    expect(a).toEqual(b);
+  });
+
+  it('round case 3: works with a pool of one', () => {
+    const questions = buildQuestions([MIXED[0]!], 1, 'kana-to-romaji', mulberry32(1));
+    expect(questions).toHaveLength(1);
+    expect(questions[0]?.kana.kana).toBe('ぬ');
+  });
+
+  it('never repeats a kana within a round', () => {
+    const questions = buildQuestions(MIXED, 4, 'both', mulberry32(3));
+    const identities = questions.map((q) => `${q.kana.script}:${q.kana.kana}`);
+    expect(new Set(identities).size).toBe(identities.length);
+  });
+
+  it('treats ぬ and ヌ as two different cards, not a repeat', () => {
+    const questions = buildQuestions([MIXED[0]!, MIXED[1]!], 2, 'kana-to-romaji', mulberry32(3));
+    expect(questions).toHaveLength(2);
+    expect(new Set(questions.map((q) => q.kana.script)).size).toBe(2);
   });
 });

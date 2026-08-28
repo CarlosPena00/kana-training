@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GROUPS, HIRAGANA, KATAKANA, groupsForSection, kanaForScript } from '../../src/data';
+import { GROUPS, HIRAGANA, KATAKANA, findKana, groupsForSection, kanaForScript } from '../../src/data';
 import type { Kana } from '../../src/models/types';
 import unicodeReference from './unicode-reference.json';
 
@@ -137,5 +137,40 @@ describe('canonical romanization (invariant 14)', () => {
     for (const entry of BOTH) {
       expect(reference[entry.kana], `reading for ${entry.kana}`).toBe(entry.romaji);
     }
+  });
+});
+
+describe('findKana lookup (feature 003)', () => {
+  it('resolves a character in each script', () => {
+    expect(findKana('hiragana', 'ぬ')).toMatchObject({ kana: 'ぬ', romaji: 'nu', script: 'hiragana' });
+    expect(findKana('katakana', 'ヌ')).toMatchObject({ kana: 'ヌ', romaji: 'nu', script: 'katakana' });
+  });
+
+  it('keeps ぬ and ヌ distinct despite the shared reading', () => {
+    // The mistake list is keyed on (script, kana), so a lookup that ignored script would silently
+    // merge two entries the learner needs to be told apart.
+    expect(findKana('hiragana', 'ヌ')).toBeUndefined();
+    expect(findKana('katakana', 'ぬ')).toBeUndefined();
+  });
+
+  it('resolves every entry in the dataset', () => {
+    for (const entry of BOTH) {
+      expect(findKana(entry.script, entry.kana), `lookup for ${entry.kana}`).toBe(entry);
+    }
+  });
+
+  it('returns undefined for a character that is not in the dataset', () => {
+    // Stored entries survive releases; a kana removed from the dataset must resolve to nothing
+    // rather than throwing (FR-037).
+    for (const excluded of EXCLUDED) {
+      expect(findKana('hiragana', excluded)).toBeUndefined();
+      expect(findKana('katakana', excluded)).toBeUndefined();
+    }
+    expect(findKana('hiragana', '')).toBeUndefined();
+    expect(findKana('hiragana', 'zzz')).toBeUndefined();
+  });
+
+  it('returns undefined for a script value that is not one of the two literals', () => {
+    expect(findKana('klingon' as never, 'ぬ')).toBeUndefined();
   });
 });

@@ -19,13 +19,15 @@ const sessionWith = (outcomes: readonly Outcome[]): QuizSession => {
   const questions = generateQuiz(configuration, mulberry32(5));
   const answers: AnswerRecord[] = outcomes.map((outcome, questionIndex) => {
     const expected = questions[questionIndex]!.expectedAnswer;
-    if (outcome === false) return { questionIndex, submissions: ['zzz'], isCorrect: false };
+    if (outcome === false)
+      return { questionIndex, submissions: ['zzz'], isCorrect: false, firstSubmissionCorrect: false };
     const attempt = outcome === true ? 1 : outcome;
     const submissions = [...Array<string>(attempt - 1).fill('zzz'), expected];
-    return { questionIndex, submissions, isCorrect: true };
+    return { questionIndex, submissions, isCorrect: true, firstSubmissionCorrect: outcome === true };
   });
   return {
     configuration,
+    mode: 'standard',
     questions,
     currentIndex: outcomes.length - 1,
     answers,
@@ -68,13 +70,19 @@ describe('scoreSession (FR-032, FR-033a)', () => {
 
 describe('partial credit for later attempts', () => {
   it('awards 1 point on the first try, 1/2 on the second, 1/3 on the third', () => {
-    expect(pointsFor({ questionIndex: 0, submissions: ['a'], isCorrect: true })).toBe(1);
-    expect(pointsFor({ questionIndex: 0, submissions: ['x', 'a'], isCorrect: true })).toBeCloseTo(1 / 2);
-    expect(pointsFor({ questionIndex: 0, submissions: ['x', 'y', 'a'], isCorrect: true })).toBeCloseTo(1 / 3);
+    expect(pointsFor({ questionIndex: 0, submissions: ['a'], isCorrect: true, firstSubmissionCorrect: true })).toBe(1);
+    expect(
+      pointsFor({ questionIndex: 0, submissions: ['x', 'a'], isCorrect: true, firstSubmissionCorrect: false }),
+    ).toBeCloseTo(1 / 2);
+    expect(
+      pointsFor({ questionIndex: 0, submissions: ['x', 'y', 'a'], isCorrect: true, firstSubmissionCorrect: false }),
+    ).toBeCloseTo(1 / 3);
   });
 
   it('awards nothing for a card never answered correctly', () => {
-    expect(pointsFor({ questionIndex: 0, submissions: ['x', 'y', 'z'], isCorrect: false })).toBe(0);
+    expect(
+      pointsFor({ questionIndex: 0, submissions: ['x', 'y', 'z'], isCorrect: false, firstSubmissionCorrect: false }),
+    ).toBe(0);
   });
 
   it('still counts a late answer as correct', () => {
@@ -113,12 +121,13 @@ describe('a card still open for retries', () => {
   const sessionWithPending = (): QuizSession => {
     const questions = generateQuiz(configuration, mulberry32(5));
     const answers: AnswerRecord[] = [
-      { questionIndex: 0, submissions: [questions[0]!.expectedAnswer], isCorrect: true },
+      { questionIndex: 0, submissions: [questions[0]!.expectedAnswer], isCorrect: true, firstSubmissionCorrect: true },
       // Wrong once, two attempts still to go — not a miss yet.
-      { questionIndex: 1, submissions: ['zzz'], isCorrect: false },
+      { questionIndex: 1, submissions: ['zzz'], isCorrect: false, firstSubmissionCorrect: false },
     ];
     return {
       configuration: threeAttempts,
+      mode: 'standard',
       questions,
       currentIndex: 1,
       answers,
@@ -143,7 +152,10 @@ describe('a card still open for retries', () => {
     const pending = sessionWithPending();
     const session: QuizSession = {
       ...pending,
-      answers: [pending.answers[0]!, { questionIndex: 1, submissions: ['z', 'z', 'z'], isCorrect: false }],
+      answers: [
+        pending.answers[0]!,
+        { questionIndex: 1, submissions: ['z', 'z', 'z'], isCorrect: false, firstSubmissionCorrect: false },
+      ],
     };
     const score = scoreSession(session);
     expect(score.incorrectCount).toBe(1);
@@ -157,12 +169,14 @@ describe('quiz timing', () => {
     const questions = generateQuiz({ ...configuration, cardCount: cards }, mulberry32(5));
     return {
       configuration: { ...configuration, cardCount: cards },
+      mode: 'standard',
       questions,
       currentIndex: cards - 1,
       answers: questions.map((q, questionIndex) => ({
         questionIndex,
         submissions: [q.expectedAnswer],
         isCorrect: true,
+        firstSubmissionCorrect: true,
       })),
       status: completedAt === null ? 'active' : 'complete',
       startedAt,
@@ -186,5 +200,65 @@ describe('quiz timing', () => {
 
   it('never reports a negative duration if the clock jumps backwards', () => {
     expect(scoreSession(timed(10_000, 5_000)).elapsedMs).toBe(0);
+  });
+});
+
+describe('correction-round scoring (003 FR-029a, FR-029c, SC-005a)', () => {
+  /**
+   * A correction round refuses to advance until the card is right, so every record ends
+   * `isCorrect`. Scoring on that would report every round as perfect and contradict the mistake
+   * list the learner sees seconds later.
+   */
+  const correctionSession = (firstAnswers: readonly boolean[]): QuizSession => {
+    const questions = generateQuiz({ ...configuration, cardCount: firstAnswers.length }, mulberry32(5));
+    return {
+      configuration: { ...configuration, cardCount: firstAnswers.length },
+      mode: 'correction',
+      questions,
+      currentIndex: firstAnswers.length - 1,
+      answers: firstAnswers.map((firstSubmissionCorrect, questionIndex) => ({
+        questionIndex,
+        submissions: firstSubmissionCorrect
+          ? [questions[questionIndex]!.expectedAnswer]
+          : ['zzz', questions[questionIndex]!.expectedAnswer],
+        // Forced correction means every card ends correct, without exception.
+        isCorrect: true,
+        firstSubmissionCorrect,
+      })),
+      status: 'complete',
+      startedAt: 0,
+      completedAt: 1000,
+    };
+  };
+
+  it('round case 10: reports six wrong first answers as 4 of 10, not 10 of 10', () => {
+    const score = scoreSession(correctionSession([true, true, true, true, false, false, false, false, false, false]));
+    expect(score.correctCount).toBe(4);
+    expect(score.incorrectCount).toBe(6);
+    expect(score.accuracy).toBe(40);
+  });
+
+  it('gives no partial credit for a corrected card', () => {
+    const score = scoreSession(correctionSession([false, false]));
+    expect(score.points).toBe(0);
+    expect(score.correctCount).toBe(0);
+  });
+
+  it('reports 100% only when every card was right on sight', () => {
+    const score = scoreSession(correctionSession([true, true, true]));
+    expect(score.accuracy).toBe(100);
+    expect(score.correctCount).toBe(3);
+  });
+
+  it('lists the kana whose first answer was wrong', () => {
+    const score = scoreSession(correctionSession([true, false, false]));
+    expect(score.missedKana).toHaveLength(2);
+  });
+
+  it('round case 11: leaves standard-mode partial credit untouched (FR-029c)', () => {
+    // The same outcomes in a standard session still earn 1/2 for a second-attempt solve.
+    const score = scoreSession(sessionWith([true, 2]));
+    expect(score.correctCount).toBe(2);
+    expect(score.points).toBeCloseTo(1.5);
   });
 });

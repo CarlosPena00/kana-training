@@ -1,7 +1,7 @@
-import { generateQuiz } from '../engine/generate';
+import { buildQuestions, generateQuiz } from '../engine/generate';
 import { checkAnswer } from '../engine/validate';
 import { isBlank } from '../engine/normalize';
-import { validateConfiguration } from '../engine/pool';
+import { validateConfiguration, validateCorrectionRound } from '../engine/pool';
 import { defaultRng, type Rng } from '../engine/rng';
 import { ALL_MAIN_GROUP_IDS } from '../data';
 import type {
@@ -10,6 +10,7 @@ import type {
   ConfigurationError,
   DirectionSetting,
   GroupId,
+  Kana,
   QuizConfiguration,
   QuizSession,
   Script,
@@ -20,7 +21,7 @@ import type {
  * a session only exists once a quiz has actually started (see data-model.md state transitions).
  */
 
-export type AppStatus = 'configuring' | 'quizzing' | 'results';
+export type AppStatus = 'configuring' | 'quizzing' | 'results' | 'history';
 
 export interface QuizState {
   readonly status: AppStatus;
@@ -54,11 +55,14 @@ export type QuizAction =
   | { type: 'set-direction'; direction: DirectionSetting }
   | { type: 'set-attempts'; attemptsAllowed: AttemptsAllowed }
   | { type: 'start'; rng?: Rng; now: number }
+  | { type: 'start-correction'; pool: readonly Kana[]; cardCount: number; rng?: Rng; now: number }
   | { type: 'submit'; raw: string; now: number }
   | { type: 'continue' }
   | { type: 'practice-again'; rng?: Rng; now: number }
   | { type: 'go-home' }
-  | { type: 'abandon' };
+  | { type: 'abandon' }
+  | { type: 'open-history' }
+  | { type: 'close-history' };
 
 function reconfigure(state: QuizState, configuration: QuizConfiguration): QuizState {
   // Any change to the configuration clears a stale "you cannot start" message.
@@ -73,11 +77,39 @@ function startSession(state: QuizState, rng: Rng, now: number): QuizState {
 
   const session: QuizSession = {
     configuration: state.configuration,
+    mode: 'standard',
     questions: generateQuiz(state.configuration, rng),
     currentIndex: 0,
     answers: [],
     status: 'active',
     // The clock starts here and is not shown again until the results screen.
+    startedAt: now,
+    completedAt: null,
+  };
+  return { ...state, status: 'quizzing', session, error: null };
+}
+
+function startCorrectionRound(
+  state: QuizState,
+  pool: readonly Kana[],
+  cardCount: number,
+  rng: Rng,
+  now: number,
+): QuizState {
+  const validation = validateCorrectionRound(pool.length, cardCount);
+  if (!validation.ok) {
+    return { ...state, status: 'history', session: null, error: validation.error };
+  }
+
+  const session: QuizSession = {
+    // Carried for direction and for the answer input; `script` is meaningless in this mode,
+    // because the pool spans both and each card's script comes from its own kana (003 FR-020b).
+    configuration: { ...state.configuration, cardCount },
+    mode: 'correction',
+    questions: buildQuestions(pool, cardCount, state.configuration.direction, rng),
+    currentIndex: 0,
+    answers: [],
+    status: 'active',
     startedAt: now,
     completedAt: null,
   };
@@ -113,6 +145,15 @@ export function quizReducer(state: QuizState, action: QuizAction): QuizState {
     case 'start':
       return startSession(state, action.rng ?? defaultRng, action.now);
 
+    case 'start-correction':
+      return startCorrectionRound(
+        state,
+        action.pool,
+        action.cardCount,
+        action.rng ?? defaultRng,
+        action.now,
+      );
+
     case 'submit': {
       const session = state.session;
       if (!session || session.status !== 'active') return state;
@@ -126,22 +167,44 @@ export function quizReducer(state: QuizState, action: QuizAction): QuizState {
       const submissions = [...(existing?.submissions ?? []), action.raw];
       const isCorrect = checkAnswer(question, action.raw);
 
-      const record: AnswerRecord = { questionIndex: session.currentIndex, submissions, isCorrect };
+      // Written on the first submission and carried forward untouched from then on. A later
+      // retry — or the forced correction a correction round demands — must never revise it, or
+      // the mistake list becomes clearable by answering wrong and copying the answer (003 SC-004).
+      const firstSubmissionCorrect = existing ? existing.firstSubmissionCorrect : isCorrect;
+
+      const record: AnswerRecord = {
+        questionIndex: session.currentIndex,
+        submissions,
+        isCorrect,
+        firstSubmissionCorrect,
+      };
       const answers = existing
         ? session.answers.map((entry) => (entry === existing ? record : entry))
         : [...session.answers, record];
 
       // A wrong answer with attempts left keeps the card open and the answer hidden: the learner
       // retries rather than being shown the answer (FR-044).
-      const attemptsLeft = session.configuration.attemptsAllowed - submissions.length;
+      //
+      // A correction round has no attempt limit (003 FR-026), so a wrong answer always leaves the
+      // card open. It differs from a retry in what the learner sees: the correct answer is
+      // revealed and stays on screen while they type it (003 FR-023, FR-023a). Keeping the card
+      // `active` rather than routing through the feedback panel is what makes that possible — the
+      // panel is replaced by the prompt on the way back, which would hide the answer at the exact
+      // moment it is needed.
+      const attemptsLeft =
+        session.mode === 'correction'
+          ? Number.POSITIVE_INFINITY
+          : session.configuration.attemptsAllowed - submissions.length;
       const status = !isCorrect && attemptsLeft > 0 ? 'active' : 'awaiting-continue';
 
       // The clock stops on the final answer, not when the learner leaves the feedback panel
       // (FR-048). Every other card's feedback dwell ends when the learner moves on; the last
       // card's has no upper bound, so counting it would let an abandoned screen inflate the total.
       const isFinalCard = session.currentIndex === session.questions.length - 1;
-      const completedAt =
-        status === 'awaiting-continue' && isFinalCard ? action.now : session.completedAt;
+      // In a correction round the last card is not finished until it is right, so a wrong answer
+      // on it must not stop the clock.
+      const cardIsFinished = session.mode === 'correction' ? isCorrect : status === 'awaiting-continue';
+      const completedAt = cardIsFinished && isFinalCard ? action.now : session.completedAt;
 
       return { ...state, session: { ...session, answers, status, completedAt } };
     }
@@ -159,6 +222,16 @@ export function quizReducer(state: QuizState, action: QuizAction): QuizState {
 
     case 'practice-again':
       return startSession(state, action.rng ?? defaultRng, action.now);
+
+    case 'open-history':
+      // Reachable from configuration without starting a quiz (FR-014), and where a correction
+      // round returns to — both when it finishes and when the learner leaves one part-way
+      // (003 FR-025). Any session is discarded on the way, never resumed in a partial state, and
+      // a stale "you cannot start" message has nothing to do with this screen.
+      return { ...state, status: 'history', session: null, error: null };
+
+    case 'close-history':
+      return { ...state, status: 'configuring', session: null, error: null };
 
     case 'go-home':
     case 'abandon':

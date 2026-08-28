@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPool, validateConfiguration } from '../../src/engine/pool';
+import { buildPool, validateConfiguration, validateCorrectionRound } from '../../src/engine/pool';
 import type { GroupId, QuizConfiguration } from '../../src/models/types';
 
 const config = (over: Partial<QuizConfiguration> = {}): QuizConfiguration => ({
@@ -65,5 +65,27 @@ describe('validateConfiguration', () => {
   it('reports the empty selection before complaining about the count', () => {
     const result = validateConfiguration(config({ selectedGroupIds: [], cardCount: 99 }));
     expect(result).toMatchObject({ error: 'NO_KANA_SELECTED' });
+  });
+});
+
+describe('validateCorrectionRound (003 FR-021, FR-027)', () => {
+  it('round case 5: refuses an empty mistake list', () => {
+    const result = validateCorrectionRound(0, 5);
+    expect(result).toEqual({ ok: false, poolSize: 0, error: 'NO_KANA_SELECTED' });
+  });
+
+  it('round case 4: refuses more cards than the list holds, rather than truncating', () => {
+    const result = validateCorrectionRound(3, 5);
+    expect(result).toEqual({ ok: false, poolSize: 3, error: 'CARD_COUNT_EXCEEDS_POOL' });
+  });
+
+  it('accepts a round that fits', () => {
+    expect(validateCorrectionRound(5, 5)).toEqual({ ok: true, poolSize: 5 });
+    expect(validateCorrectionRound(5, 1)).toEqual({ ok: true, poolSize: 5 });
+  });
+
+  it('rejects a card count that is not a positive integer', () => {
+    expect(validateCorrectionRound(5, 0)).toMatchObject({ error: 'CARD_COUNT_TOO_LOW' });
+    expect(validateCorrectionRound(5, 1.5)).toMatchObject({ error: 'CARD_COUNT_NOT_INTEGER' });
   });
 });

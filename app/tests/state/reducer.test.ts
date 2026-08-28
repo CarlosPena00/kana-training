@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { initialState, quizReducer, type QuizState } from '../../src/state/quizReducer';
 import { mulberry32 } from '../../src/engine/rng';
+import { findKana } from '../../src/data';
 import type { QuizConfiguration } from '../../src/models/types';
 
 const configuration: QuizConfiguration = {
@@ -277,5 +278,169 @@ describe('quiz timing', () => {
     const again = quizReducer(done, { type: 'practice-again', rng: mulberry32(9), now: 500_000 });
     expect(again.session?.startedAt).toBe(500_000);
     expect(again.session?.completedAt).toBeNull();
+  });
+});
+
+describe('firstSubmissionCorrect (003 FR-006, FR-012)', () => {
+  it('is true when the first answer is right', () => {
+    const state = answerCurrent(started(), true);
+    expect(state.session?.answers[0]?.firstSubmissionCorrect).toBe(true);
+  });
+
+  it('is false when the first answer is wrong', () => {
+    const state = answerCurrent(started(), false);
+    expect(state.session?.answers[0]?.firstSubmissionCorrect).toBe(false);
+  });
+
+  /**
+   * The one that matters. `isCorrect` tracks the latest submission and flips to true on a retry;
+   * `firstSubmissionCorrect` must not. If these ever move together, a correction round — which
+   * refuses to advance until the answer is typed — would clear the learner's whole mistake list
+   * without them learning anything (003 SC-004).
+   */
+  it('stays false through any number of later correct retries, while isCorrect flips', () => {
+    let state = started({ attemptsAllowed: 3 });
+    const question = state.session!.questions[0]!;
+
+    state = quizReducer(state, { type: 'submit', raw: 'zzz', now: 0 });
+    expect(state.session?.answers[0]?.firstSubmissionCorrect).toBe(false);
+    expect(state.session?.answers[0]?.isCorrect).toBe(false);
+
+    state = quizReducer(state, { type: 'submit', raw: question.expectedAnswer, now: 0 });
+    expect(state.session?.answers[0]?.isCorrect).toBe(true);
+    expect(state.session?.answers[0]?.firstSubmissionCorrect).toBe(false);
+  });
+
+  it('stays true when a correct first answer is followed by nothing else', () => {
+    let state = started({ attemptsAllowed: 3 });
+    const question = state.session!.questions[0]!;
+    state = quizReducer(state, { type: 'submit', raw: question.expectedAnswer, now: 0 });
+    state = quizReducer(state, { type: 'submit', raw: 'zzz', now: 0 });
+    expect(state.session?.answers[0]?.firstSubmissionCorrect).toBe(true);
+  });
+});
+
+describe('correction rounds (003 FR-024, FR-026)', () => {
+  const POOL = [
+    findKana('hiragana', 'ぬ')!,
+    findKana('katakana', 'ヌ')!,
+    findKana('hiragana', 'ね')!,
+  ];
+
+  const correcting = (over: Partial<QuizConfiguration> = {}): QuizState =>
+    quizReducer(configured({ direction: 'kana-to-romaji', ...over }), {
+      type: 'start-correction',
+      pool: POOL,
+      cardCount: 3,
+      rng: mulberry32(3),
+      now: 0,
+    });
+
+  it('starts a round in correction mode drawn only from the given pool', () => {
+    const state = correcting();
+    expect(state.status).toBe('quizzing');
+    expect(state.session?.mode).toBe('correction');
+    expect(state.session?.questions).toHaveLength(3);
+    for (const question of state.session!.questions) {
+      expect(POOL.some((k) => k.kana === question.kana.kana && k.script === question.kana.script)).toBe(true);
+    }
+  });
+
+  it('refuses to start on an empty pool (FR-021)', () => {
+    const state = quizReducer(configured(), {
+      type: 'start-correction',
+      pool: [],
+      cardCount: 3,
+      now: 0,
+    });
+    // Refused rounds leave the learner on the screen they started from, with the reason shown
+    // there. FR-021 makes this path unreachable through the UI; it is a guard, not a flow.
+    expect(state.status).toBe('history');
+    expect(state.error).toBe('NO_KANA_SELECTED');
+  });
+
+  it('refuses more cards than the pool holds (FR-027)', () => {
+    const state = quizReducer(configured(), {
+      type: 'start-correction',
+      pool: POOL,
+      cardCount: 9,
+      now: 0,
+    });
+    expect(state.error).toBe('CARD_COUNT_EXCEEDS_POOL');
+  });
+
+  it('round case 7: a wrong answer leaves the card open instead of advancing', () => {
+    // The card stays `active` rather than passing through the feedback panel, which is what lets
+    // the revealed answer stay on screen while the learner types it (003 FR-023a).
+    const state = answerCurrent(correcting(), false);
+    expect(state.session?.status).toBe('active');
+    expect(state.session?.currentIndex).toBe(0);
+  });
+
+  it('round case 8: five wrong answers then a correct one is still one card and one record', () => {
+    let state = correcting();
+    for (let i = 0; i < 5; i += 1) {
+      state = answerCurrent(state, false);
+      expect(state.session?.currentIndex).toBe(0);
+      expect(state.session?.status).toBe('active');
+    }
+    state = answerCurrent(state, true);
+    state = quizReducer(state, { type: 'continue' });
+
+    expect(state.session?.currentIndex).toBe(1);
+    expect(state.session?.answers).toHaveLength(1);
+    expect(state.session?.answers[0]?.submissions).toHaveLength(6);
+    // The forced correction must not rewrite the fact that the first answer was wrong (FR-012).
+    expect(state.session?.answers[0]?.firstSubmissionCorrect).toBe(false);
+  });
+
+  it('round case 9: the per-card attempt limit does not apply (FR-026)', () => {
+    // attemptsAllowed of 1 would end an ordinary card immediately; a correction round ignores it.
+    let state = correcting({ attemptsAllowed: 1 });
+    state = answerCurrent(state, false);
+    expect(state.session?.status).toBe('active');
+
+    state = answerCurrent(state, false);
+    expect(state.session?.status).toBe('active');
+    expect(state.session?.currentIndex).toBe(0);
+    expect(state.session?.answers[0]?.submissions).toHaveLength(2);
+  });
+
+  it('round case 12: abandoning a held card keeps the answers already given', () => {
+    let state = correcting();
+    state = answerCurrent(state, true);
+    state = quizReducer(state, { type: 'continue' });
+    state = answerCurrent(state, false);
+
+    const recorded = state.session?.answers.map((a) => a.firstSubmissionCorrect);
+    expect(recorded).toEqual([true, false]);
+
+    state = quizReducer(state, { type: 'abandon' });
+    expect(state.status).toBe('configuring');
+    expect(state.session).toBeNull();
+  });
+
+  it('advances normally once the card is answered correctly', () => {
+    let state = correcting();
+    state = answerCurrent(state, true);
+    state = quizReducer(state, { type: 'continue' });
+    expect(state.session?.currentIndex).toBe(1);
+  });
+
+  it('reaches results after the last card is corrected', () => {
+    let state = correcting();
+    for (let card = 0; card < 3; card += 1) {
+      state = answerCurrent(state, false);
+      state = answerCurrent(state, true);
+      state = quizReducer(state, { type: 'continue' });
+    }
+    expect(state.status).toBe('results');
+    expect(state.session?.status).toBe('complete');
+  });
+
+  it('an ordinary quiz still advances past a wrong answer (FR-041)', () => {
+    let state = answerCurrent(started(), false);
+    state = quizReducer(state, { type: 'continue' });
+    expect(state.session?.currentIndex).toBe(1);
   });
 });

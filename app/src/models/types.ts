@@ -68,12 +68,36 @@ export interface AnswerRecord {
   readonly questionIndex: number;
   readonly submissions: readonly string[];
   readonly isCorrect: boolean;
+  /**
+   * Whether the learner's *first* answer to this card was right. Written once, when the first
+   * submission is graded, and never revised (003 FR-006).
+   *
+   * Deliberately not the same thing as `isCorrect`, which tracks the most recent submission and
+   * flips to `true` as the learner retries. In a correction round every card ends `isCorrect`,
+   * because the round refuses to advance until the answer is typed — so scoring or the mistake
+   * list on `isCorrect` would report perfect rounds and let a learner clear their whole history by
+   * answering wrong and copying the answer (003 SC-004).
+   */
+  readonly firstSubmissionCorrect: boolean;
 }
 
 export type SessionStatus = 'active' | 'awaiting-continue' | 'complete';
 
+/**
+ * What kind of round this is. `correction` changes exactly two behaviors — the card does not
+ * advance until answered correctly (003 FR-024), and scoring counts first submissions only
+ * (003 FR-029a) — and nothing else.
+ */
+export type SessionMode = 'standard' | 'correction';
+
 export interface QuizSession {
   readonly configuration: QuizConfiguration;
+  /**
+   * In a `correction` session the pool is drawn from the mistake list and spans both scripts, so
+   * `configuration.script` is meaningless here — every card's script comes from its own kana
+   * (003 FR-020b). Nothing may read `configuration.script` while this is `'correction'`.
+   */
+  readonly mode: SessionMode;
   readonly questions: readonly QuizQuestion[];
   readonly currentIndex: number;
   readonly answers: readonly AnswerRecord[];
@@ -121,3 +145,27 @@ export type ConfigurationError =
 export type ValidationResult =
   | { readonly ok: true; readonly poolSize: number }
   | { readonly ok: false; readonly poolSize: number; readonly error: ConfigurationError };
+
+/**
+ * One kana the learner has answered incorrectly and has not yet cleared.
+ * Identity is (script, kana) — direction is deliberately not part of it, because a kana is one
+ * card whichever way it is asked (003 FR-002). ぬ and ヌ are therefore separate entries.
+ *
+ * See specs/003-mistake-history/data-model.md for the full lifecycle.
+ */
+export interface MistakeEntry {
+  readonly script: Script;
+  readonly kana: string;
+  /** Total times missed, >= 1. Never decreases while the entry exists. */
+  readonly missCount: number;
+  /**
+   * Consecutive correct first answers. Reaching 3 deletes the entry (003 FR-009), so a stored
+   * entry is never at 3 — that value is the removal, not a state.
+   */
+  readonly streak: 0 | 1 | 2;
+  /** ISO 8601, UTC. The only timestamp kept; no answer log and no per-quiz data (003 FR-039). */
+  readonly lastMissedAt: string;
+}
+
+/** At most one entry per kana per script, so bounded by the dataset at 214 (003 FR-030). */
+export type MistakeList = readonly MistakeEntry[];

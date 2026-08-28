@@ -22,21 +22,43 @@ export function isResolved(record: AnswerRecord, attemptsAllowed: number): boole
 }
 
 export function scoreSession(session: QuizSession): SessionScore {
-  const attemptsAllowed = session.configuration.attemptsAllowed;
-  const answered = session.answers.filter((record) => isResolved(record, attemptsAllowed));
-  const correct = answered.filter((record) => record.isCorrect);
+  /**
+   * A correction round is scored on first submissions only (003 FR-029a). It refuses to advance
+   * until the card is right, so every record ends `isCorrect` — scoring on that would report every
+   * round as 100% and contradict the mistake list the learner sees seconds later.
+   *
+   * Ordinary quizzes are untouched and keep their partial credit (003 FR-029c, FR-041).
+   */
+  const isCorrection = session.mode === 'correction';
+  const attemptsAllowed = isCorrection ? 1 : session.configuration.attemptsAllowed;
 
-  const points = answered.reduce((total, record) => total + pointsFor(record), 0);
+  // One predicate for "did this card count as right", so the tally, the accuracy, and the review
+  // list cannot disagree about the same card.
+  const wasRight = (record: AnswerRecord) =>
+    isCorrection ? record.firstSubmissionCorrect : record.isCorrect;
 
+  const answered = isCorrection
+    ? session.answers
+    : session.answers.filter((record) => isResolved(record, attemptsAllowed));
+  const correct = answered.filter(wasRight);
+
+  const points = isCorrection
+    ? correct.length
+    : answered.reduce((total, record) => total + pointsFor(record), 0);
+
+  // Attempt breakdown is meaningless when every card is retried until right, so it is not
+  // produced for a correction round.
   const byAttempt: number[] = [];
-  for (const record of correct) {
-    const index = record.submissions.length - 1;
-    byAttempt[index] = (byAttempt[index] ?? 0) + 1;
+  if (!isCorrection) {
+    for (const record of correct) {
+      const index = record.submissions.length - 1;
+      byAttempt[index] = (byAttempt[index] ?? 0) + 1;
+    }
+    for (let i = 0; i < byAttempt.length; i += 1) byAttempt[i] ??= 0;
   }
-  for (let i = 0; i < byAttempt.length; i += 1) byAttempt[i] ??= 0;
 
   const missedKana: Kana[] = answered
-    .filter((record) => !record.isCorrect)
+    .filter((record) => !wasRight(record))
     .map((record) => session.questions[record.questionIndex]?.kana)
     .filter((kana): kana is Kana => kana !== undefined);
 
