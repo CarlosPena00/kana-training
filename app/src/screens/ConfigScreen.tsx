@@ -155,10 +155,13 @@ export function ConfigScreen() {
         {mistakes.length > 0 ? `Your mistakes (${mistakes.length})` : 'Your mistakes'}
       </button>
 
-      {/* Build version, so a bug report can name the release it came from. Injected from
-          package.json at build time (vite.config.ts). */}
+      {/* Release number plus the commit it was built from, so a bug report — or a screenshot —
+          names the exact build. The release number alone moves only when bumped by hand, which
+          makes a stale cached build indistinguishable from a real bug. */}
       <footer className="config__footer">
-        <p className="muted">Version {__APP_VERSION__}</p>
+        <p className="muted">
+          Version {__APP_VERSION__} ({__BUILD_SHA__})
+        </p>
       </footer>
     </section>
   );

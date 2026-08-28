@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -9,16 +10,37 @@ import { VitePWA } from 'vite-plugin-pwa';
 // per build rather than hardcoded, so the same source produces both.
 const base = process.env['PUBLIC_BASE_PATH'] ?? '/';
 
-// package.json is the single source of truth for the version the app shows. Android reads its own
-// versionName from build.gradle, so the two are kept in step by hand at release time.
+// package.json is the single source of truth for the release number the app shows. Android reads
+// its own versionName from build.gradle, so the two are kept in step by hand at release time.
 const { version } = JSON.parse(
   readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
 ) as { version: string };
+
+/**
+ * The commit the build came from, appended to the release number.
+ *
+ * The release number alone cannot answer "am I looking at the build I just deployed?", because it
+ * only moves when someone bumps it by hand — so every build between releases looks identical. That
+ * ambiguity has already cost real debugging time: a cached service worker and a genuine bug are
+ * indistinguishable on screen without it.
+ *
+ * Falls back to 'dev' rather than failing the build: git is absent in some packaging contexts, and
+ * a missing SHA is not a reason to be unable to build.
+ */
+function commitSha(): string {
+  if (process.env['PUBLIC_BUILD_SHA']) return process.env['PUBLIC_BUILD_SHA'].slice(0, 7);
+  try {
+    return execSync('git rev-parse --short=7 HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return 'dev';
+  }
+}
 
 export default defineConfig({
   base,
   define: {
     __APP_VERSION__: JSON.stringify(version),
+    __BUILD_SHA__: JSON.stringify(commitSha()),
   },
   plugins: [
     react(),

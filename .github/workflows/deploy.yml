@@ -61,6 +61,9 @@ jobs:
         run: npm run build
         env:
           PUBLIC_BASE_PATH: /${{ github.event.repository.name }}/
+          # Stamped into the config screen so a screenshot names the exact build, which is what
+          # tells a stale service-worker cache apart from a real bug.
+          PUBLIC_BUILD_SHA: ${{ github.sha }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

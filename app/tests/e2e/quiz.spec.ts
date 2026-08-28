@@ -35,7 +35,12 @@ test('the config screen shows the build version', async ({ page }) => {
     readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
   ) as { version: string };
   await page.goto('/');
-  await expect(page.getByText(`Version ${version}`)).toBeVisible();
+  // The commit is part of the line: the release number alone only moves when bumped by hand, so
+  // without a SHA a cached build and a fresh one look identical on screen.
+  const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  await expect(
+    page.getByText(new RegExp(`^Version ${escaped} \\((?:[0-9a-f]{7}|dev)\\)$`)),
+  ).toBeVisible();
 });
 
 test('an empty answer does not advance the quiz (FR-023)', async ({ page }) => {
