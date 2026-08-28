@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
@@ -27,6 +28,14 @@ test('the default configuration starts a quiz and reaches results', async ({ pag
   await expect(page.getByText('0 / 10 correct')).toBeVisible();
   // Every answer was wrong, so the review list must be there (FR-033a).
   await expect(page.getByRole('heading', { name: 'Kana to review' })).toBeVisible();
+});
+
+test('the config screen shows the build version', async ({ page }) => {
+  const { version } = JSON.parse(
+    readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+  ) as { version: string };
+  await page.goto('/');
+  await expect(page.getByText(`Version ${version}`)).toBeVisible();
 });
 
 test('an empty answer does not advance the quiz (FR-023)', async ({ page }) => {

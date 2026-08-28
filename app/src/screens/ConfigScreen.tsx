@@ -154,6 +154,12 @@ export function ConfigScreen() {
       >
         {mistakes.length > 0 ? `Your mistakes (${mistakes.length})` : 'Your mistakes'}
       </button>
+
+      {/* Build version, so a bug report can name the release it came from. Injected from
+          package.json at build time (vite.config.ts). */}
+      <footer className="config__footer">
+        <p className="muted">Version {__APP_VERSION__}</p>
+      </footer>
     </section>
   );
 }

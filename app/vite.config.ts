@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -8,8 +9,17 @@ import { VitePWA } from 'vite-plugin-pwa';
 // per build rather than hardcoded, so the same source produces both.
 const base = process.env['PUBLIC_BASE_PATH'] ?? '/';
 
+// package.json is the single source of truth for the version the app shows. Android reads its own
+// versionName from build.gradle, so the two are kept in step by hand at release time.
+const { version } = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
+) as { version: string };
+
 export default defineConfig({
   base,
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
   plugins: [
     react(),
     VitePWA({

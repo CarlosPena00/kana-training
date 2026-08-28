@@ -74,3 +74,8 @@
   width: 100%;
   min-height: var(--touch-target);
 }
+
+.config__footer {
+  text-align: center;
+  padding-top: var(--space-2);
+}
