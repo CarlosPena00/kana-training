@@ -6,6 +6,13 @@ interface Props {
   readonly submitted: string;
   readonly isCorrect: boolean;
   readonly attemptsUsed: number;
+  /**
+   * Whether to report which attempt solved the card and what it was worth. False in a correction
+   * round, which has no attempt limit and no partial credit (003 FR-026, FR-029a): the round
+   * requires the answer to be typed before moving on, so "on the second attempt — ½ point" would
+   * both be wrong and contradict the results screen, which scores that card as incorrect.
+   */
+  readonly showAttemptCredit?: boolean | undefined;
 }
 
 const ORDINAL = ['first', 'second', 'third'] as const;
@@ -17,7 +24,13 @@ const CREDIT = ['1 point', '½ point', '⅓ point'] as const;
  *
  * Feedback remains until the learner advances — never auto-dismissed (FR-029, FR-030, FR-031).
  */
-export function FeedbackPanel({ question, submitted, isCorrect, attemptsUsed }: Props) {
+export function FeedbackPanel({
+  question,
+  submitted,
+  isCorrect,
+  attemptsUsed,
+  showAttemptCredit = true,
+}: Props) {
   const { kana } = question;
   const attemptIndex = Math.min(attemptsUsed, ORDINAL.length) - 1;
 
@@ -42,7 +55,7 @@ export function FeedbackPanel({ question, submitted, isCorrect, attemptsUsed }: 
         </p>
       )}
 
-      {attemptsUsed > 1 && attemptIndex >= 0 && (
+      {showAttemptCredit && attemptsUsed > 1 && attemptIndex >= 0 && (
         <p className="feedback__attempt">
           {isCorrect ? `On the ${ORDINAL[attemptIndex]} attempt — ${CREDIT[attemptIndex]}` : `All ${attemptsUsed} attempts used`}
         </p>

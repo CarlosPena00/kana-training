@@ -78,6 +78,7 @@ export function QuizScreen() {
             submitted={lastSubmission ?? ''}
             isCorrect={record.isCorrect}
             attemptsUsed={submissions.length}
+            showAttemptCredit={!isCorrection}
           />
         ) : (
           <Flashcard

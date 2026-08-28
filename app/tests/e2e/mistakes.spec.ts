@@ -163,6 +163,11 @@ test('round case 14: a wrong answer reveals the answer and keeps it visible (US2
 
   await page.getByLabel(/Type the/).fill('nu');
   await page.getByRole('button', { name: 'Check' }).click();
+
+  // A correction round has no attempt limit and no partial credit, so the feedback must not
+  // claim any — it would contradict the results screen two taps later (FR-026, FR-029a).
+  await expect(page.getByText(/point/)).toBeHidden();
+  await expect(page.getByText(/attempt/)).toBeHidden();
   await page.getByRole('button', { name: 'See results' }).click();
 
   // Scored on the first submission: wrong on sight is wrong, however it ended (FR-029a, SC-005a).
