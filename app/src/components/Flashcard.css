@@ -28,3 +28,29 @@
   text-decoration: line-through;
   text-decoration-color: var(--color-incorrect);
 }
+
+/* Which script a romaji prompt is asking for. Only appears in a correction round, where a round
+   can mix scripts and "nu" alone would not identify a single kana (003 FR-020c). */
+.flashcard__script-label {
+  margin-top: var(--space-2);
+  font-size: var(--text-base);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* Correction rounds: the revealed answer, kept on screen while the learner copies it. */
+.flashcard__correction {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  font-size: var(--text-base);
+  color: var(--color-text);
+  background: var(--color-incorrect-soft);
+  border: 1px solid var(--color-incorrect);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.flashcard__correction-answer {
+  font-weight: 700;
+  font-size: var(--text-lg);
+}

@@ -68,3 +68,9 @@
 .config__attempts-title {
   font-weight: 600;
 }
+
+/* Entry point to the mistake list. Secondary to "Start quiz" by weight, but always present. */
+.config__history {
+  width: 100%;
+  min-height: var(--touch-target);
+}

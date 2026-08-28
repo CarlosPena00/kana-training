@@ -33,7 +33,7 @@ function errorMessage(error: ConfigurationError, poolSize: number): string {
 }
 
 export function ConfigScreen() {
-  const { state, dispatch } = useQuiz();
+  const { state, dispatch, mistakes } = useQuiz();
   const { configuration } = state;
 
   const pool = useMemo(
@@ -144,6 +144,16 @@ export function ConfigScreen() {
           {errorMessage(validation.error, validation.poolSize)}
         </p>
       )}
+
+      {/* Reachable without starting a quiz (003 FR-014). Always shown, so a learner with an empty
+          list still learns the feature exists rather than discovering it only after a bad round. */}
+      <button
+        type="button"
+        className="button config__history"
+        onClick={() => dispatch({ type: 'open-history' })}
+      >
+        {mistakes.length > 0 ? `Your mistakes (${mistakes.length})` : 'Your mistakes'}
+      </button>
     </section>
   );
 }

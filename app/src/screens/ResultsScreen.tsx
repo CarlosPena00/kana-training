@@ -20,18 +20,24 @@ export function ResultsScreen() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Enter' || event.repeat) return;
       if ((event.target as HTMLElement | null)?.closest('button, a, input, textarea, select')) return;
+      // A correction round cannot be regenerated from the configuration alone — its pool came from
+      // the mistake list, which the round itself has just changed.
+      if (session?.mode === 'correction') return;
       event.preventDefault();
       dispatch({ type: 'practice-again', now: performance.now() });
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [dispatch]);
+  }, [dispatch, session]);
 
   if (!session) return null;
 
   const score = scoreSession(session);
   const total = session.questions.length;
-  const multipleAttempts = session.configuration.attemptsAllowed > 1;
+  // A correction round has no attempt limit and no partial credit, so the attempt breakdown and
+  // the points line do not apply to it (003 FR-029a).
+  const isCorrection = session.mode === 'correction';
+  const multipleAttempts = !isCorrection && session.configuration.attemptsAllowed > 1;
   // Trailing zeros look like a bug on a score of exactly 7; 7.83 needs the decimals.
   const points = Number.isInteger(score.points) ? String(score.points) : score.points.toFixed(2);
 
@@ -97,22 +103,39 @@ export function ResultsScreen() {
       )}
 
       <div className="results__actions">
-        <button
-          type="button"
-          className="button button--primary button--large"
-          onClick={() => dispatch({ type: 'practice-again', now: performance.now() })}
-        >
-          Practice again
-        </button>
-        <button type="button" className="button button--large" onClick={() => dispatch({ type: 'go-home' })}>
-          Back to home
-        </button>
+        {/* A correction round is launched from the mistake list, so that is where it returns to —
+            and it is also where the learner sees what the round actually cleared, since no
+            correction-specific summary is added here (003 FR-029b). */}
+        {isCorrection ? (
+          <button
+            type="button"
+            className="button button--primary button--large"
+            onClick={() => dispatch({ type: 'open-history' })}
+          >
+            Back to your mistakes
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="button button--primary button--large"
+              onClick={() => dispatch({ type: 'practice-again', now: performance.now() })}
+            >
+              Practice again
+            </button>
+            <button type="button" className="button button--large" onClick={() => dispatch({ type: 'go-home' })}>
+              Back to home
+            </button>
+          </>
+        )}
       </div>
 
       {/* Only shown where there is a physical keyboard to press. */}
-      <p className="results__shortcut muted">
-        Press <kbd>Enter</kbd> to practice again
-      </p>
+      {!isCorrection && (
+        <p className="results__shortcut muted">
+          Press <kbd>Enter</kbd> to practice again
+        </p>
+      )}
     </section>
   );
 }

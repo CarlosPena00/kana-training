@@ -120,6 +120,13 @@ button, input {
   min-height: 3.25rem;
 }
 
+/* Irreversible actions only. Currently just "delete my history" (003 FR-038). */
+.button--danger {
+  background: var(--color-incorrect);
+  border-color: var(--color-incorrect);
+  color: var(--color-primary-text);
+}
+
 .section-title {
   font-size: var(--text-lg);
   font-weight: 700;

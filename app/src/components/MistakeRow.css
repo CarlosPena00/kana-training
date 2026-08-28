@@ -1,0 +1,103 @@
+/* One row on the mistake list. Every color resolves from a token so contrast is checked in one
+   place (tokens.css), and nothing here declares a color inside a media query. */
+
+.mistake-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-3);
+  align-items: center;
+
+  padding: var(--space-3) var(--space-4);
+  min-height: var(--touch-target);
+
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.mistake-row__kana {
+  font-size: var(--text-2xl);
+  line-height: 1;
+  color: var(--color-text);
+  /* A fixed box keeps every row's reading column aligned whether the entry is あ or きゃ. */
+  min-width: 2.5ch;
+  text-align: center;
+}
+
+.mistake-row__detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.mistake-row__romaji {
+  font-size: var(--text-lg);
+  color: var(--color-text);
+}
+
+.mistake-row__script {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.mistake-row__stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-end;
+  text-align: right;
+}
+
+.mistake-row__misses {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.mistake-row__progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mistake-row__pips {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.mistake-row__pip {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid var(--color-border-strong);
+}
+
+.mistake-row__pip--on {
+  background: var(--color-correct);
+  border-color: var(--color-correct);
+}
+
+.mistake-row__progress-text {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* On a narrow phone the stats move under the reading rather than squeezing the kana. */
+@media (max-width: 30rem) {
+  .mistake-row {
+    grid-template-columns: auto 1fr;
+  }
+
+  .mistake-row__stats {
+    grid-column: 2;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .mistake-row__progress-text {
+    white-space: normal;
+  }
+}

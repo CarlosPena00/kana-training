@@ -43,3 +43,10 @@
   font-weight: 600;
   color: var(--color-text-muted);
 }
+
+/* Correction rounds: the instruction that goes with the still-visible correct answer. */
+.feedback__copy-prompt {
+  margin-top: var(--space-2);
+  font-weight: 600;
+  color: var(--color-text);
+}

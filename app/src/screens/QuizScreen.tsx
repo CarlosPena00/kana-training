@@ -20,6 +20,7 @@ export function QuizScreen() {
   if (!question) return null;
 
   const awaitingContinue = session.status === 'awaiting-continue';
+  const isCorrection = session.mode === 'correction';
   const record = session.answers.find((entry) => entry.questionIndex === session.currentIndex);
   const submissions = record?.submissions ?? [];
   const lastSubmission = submissions[submissions.length - 1];
@@ -36,7 +37,25 @@ export function QuizScreen() {
     setAnswer('');
   };
 
-  const showRetry = !awaitingContinue && lastSubmission !== undefined;
+  // In a correction round the answer is revealed instead of the attempt counter, and the card
+  // stays open until it is typed correctly.
+  const showRetry = !awaitingContinue && lastSubmission !== undefined && !isCorrection;
+  const showCorrection = !awaitingContinue && lastSubmission !== undefined && isCorrection;
+
+  /**
+   * A correction round holds the learner on a card until they type the right answer (003 FR-024),
+   * so the card must still name which script it wants — a mixed round makes "nu" ambiguous
+   * between ぬ and ヌ (003 FR-020c). A kana prompt is unambiguous on its own (003 FR-020e), and an
+   * ordinary quiz is never labelled at all (003 FR-041).
+   */
+  const scriptLabel =
+    isCorrection && question.direction === 'romaji-to-kana'
+      ? question.kana.script === 'hiragana'
+        ? 'Hiragana'
+        : 'Katakana'
+      : undefined;
+
+  const continueLabel = isLastCard ? 'See results' : 'Next card';
 
   return (
     <section className="quiz">
@@ -65,6 +84,12 @@ export function QuizScreen() {
             prompt={question.prompt}
             isKana={question.direction === 'kana-to-romaji'}
             retry={showRetry ? { attemptsLeft, lastAnswer: lastSubmission ?? '' } : undefined}
+            correction={
+              showCorrection
+                ? { lastAnswer: lastSubmission ?? '', correctAnswer: question.expectedAnswer }
+                : undefined
+            }
+            scriptLabel={scriptLabel}
           />
         )}
       </div>
@@ -75,15 +100,15 @@ export function QuizScreen() {
         onSubmit={handleSubmit}
         expectsKana={question.direction === 'romaji-to-kana'}
         focusKey={`${session.currentIndex}-${submissions.length}-${awaitingContinue}`}
-        actionLabel={awaitingContinue ? (isLastCard ? 'See results' : 'Next card') : 'Check'}
+        actionLabel={awaitingContinue ? continueLabel : 'Check'}
       />
 
       <button
         type="button"
         className="quiz__quit"
-        onClick={() => dispatch({ type: 'abandon' })}
+        onClick={() => dispatch({ type: isCorrection ? 'open-history' : 'abandon' })}
       >
-        Quit quiz
+        {isCorrection ? 'Leave correction round' : 'Quit quiz'}
       </button>
     </section>
   );
