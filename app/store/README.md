@@ -66,8 +66,18 @@ so it *cannot* reach the network even in principle.
 
 - Does your app collect or share any user data? **No**
 - Is all user data encrypted in transit? Not applicable — no data leaves the device
-- Data deletion request mechanism? Not applicable
-- The only stored value is a quiz preference in the WebView's local storage, on the device, never transmitted
+- Data deletion request mechanism? Not applicable to Play's question, though the app does let you
+  delete your mistake history from inside it
+- Everything stored lives in the WebView's local storage on the device and is never transmitted:
+  quiz preferences, and the mistake list (which kana you have missed, how often, and how close each
+  is to being cleared). Play defines *collection* as transmitting data off the device, so neither
+  counts as collected. `android:allowBackup` is `false`, so Android Auto Backup does not copy either
+  one to the user's Google account.
+
+Note for the privacy policy page: on **iOS**, an encrypted device backup does include the WebView's
+storage, and therefore the mistake list. There is no supported way to exclude it without moving to a
+filesystem store. Say so plainly rather than claiming the data never leaves the device on every
+platform.
 
 **Content rating** — answer the questionnaire honestly; an educational flashcard app with no ads,
 no purchases, no user content and no communication features rates **Everyone / PEGI 3**.
@@ -133,6 +143,8 @@ needs no special keyboard. Worth stating in the description so nobody is surpris
 ## 6. Before you submit
 
 - [ ] `versionCode` incremented
+- [ ] `android:allowBackup="false"` still set in `AndroidManifest.xml` — a Capacitor upgrade can
+      regenerate the manifest and quietly restore the default of `true`
 - [ ] Release build installed on a real device and opened once
 - [ ] Privacy policy URL live and reachable
 - [ ] Screenshots reflect the current UI
