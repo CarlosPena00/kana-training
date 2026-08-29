@@ -1,0 +1,7 @@
+Your mistakes now stick around.
+
+• A new "Your mistakes" screen lists every kana you have missed, how often, and how close it is to being cleared — three right answers in a row retire it.
+• Start a correction round straight from that list, drawing on both scripts at once.
+• A wrong answer that is itself a real kana now shows both characters side by side with their readings, so you can see what you mixed up.
+
+Still fully offline. No ads, no account, no tracking.

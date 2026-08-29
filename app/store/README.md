@@ -140,7 +140,21 @@ Free, and free of everything else.
 Note: *Romaji to kana* cards need a Japanese keyboard installed on the device. Kana to romaji
 needs no special keyboard. Worth stating in the description so nobody is surprised.
 
-## 6. Before you submit
+## 6. Release notes
+
+Play calls these "What's new" and caps them at **500 characters per language**, counted after
+translation — Portuguese runs longer than English, so write it to fit rather than translating a
+note that already fills the box.
+
+```text
+release-notes/v<version>/<play-locale>.txt   e.g. release-notes/v0.1.2/pt-BR.txt
+```
+
+One file per locale the listing is published in, kept per version because the Console asks for the
+notes again on every release and the previous ones are the record of what each build changed.
+Locale codes are Play's own (`en-US`, `pt-BR`), so the file name is what you paste it under.
+
+## 7. Before you submit
 
 - [ ] `versionCode` incremented
 - [ ] `android:allowBackup="false"` still set in `AndroidManifest.xml` — a Capacitor upgrade can

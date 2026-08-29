@@ -1,0 +1,7 @@
+Seus erros agora ficam registrados.
+
+• A nova tela "Seus erros" mostra cada kana que você errou, quantas vezes e o quanto falta para eliminá-lo — três acertos seguidos e ele sai da lista.
+• Comece uma rodada de correção direto dessa lista, com os dois silabários juntos.
+• Uma resposta errada que também é um kana real agora mostra os dois caracteres lado a lado com suas leituras.
+
+Continua offline. Sem anúncios, sem conta, sem rastreamento.
