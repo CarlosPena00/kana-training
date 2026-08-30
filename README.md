@@ -6,6 +6,16 @@ you want to drill, and answer randomized cards in either direction with immediat
 It runs on **Android, iOS, and the Web from one codebase**, works **completely offline**, and has no
 backend, no database, no account, no tracking, and no monetization of any kind.
 
+**▶ Try it: <https://carlospena.com.br/kana-training/>**
+
+Published from `master` by [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) on every
+push. It installs as a PWA and keeps working with the network off. The config screen shows the exact
+build it is running — e.g. `Version 0.1.2 (abc1234)` — so a bug report can name it.
+
+> Because it is offline-first, a browser that has opened it before serves its cached copy first and
+> picks up a new release on a later visit. To be certain you are on the newest build, open it in a
+> private window and check the version against the latest commit.
+
 ## What it does
 
 - **Hiragana and Katakana** — the full standard inventory: 46 main kana (including を and ん),
