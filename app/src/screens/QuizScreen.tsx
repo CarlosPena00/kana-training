@@ -33,6 +33,9 @@ export function QuizScreen() {
   if (!question) return null;
 
   const awaitingContinue = session.status === 'awaiting-continue';
+  /** Wrong, answer revealed, and held until the learner writes it. */
+  const awaitingCopy = session.status === 'awaiting-copy';
+  const showingFeedback = awaitingContinue || awaitingCopy;
   const isCorrection = session.mode === 'correction';
   const record = session.answers.find((entry) => entry.questionIndex === session.currentIndex);
   const submissions = record?.submissions ?? [];
@@ -45,6 +48,8 @@ export function QuizScreen() {
     if (awaitingContinue) {
       dispatch({ type: 'continue' });
     } else {
+      // Both an attempt and the copying step go through `submit`; the reducer knows which it is
+      // from the session status, so there is one path for "the learner committed what they typed".
       dispatch({ type: 'submit', raw: answer, now: performance.now() });
     }
     setAnswer('');
@@ -57,12 +62,12 @@ export function QuizScreen() {
    * reveals it inline. Diagnosis needs to know, because a note that would state a withheld answer
    * has to be suppressed rather than merely hidden (FR-015a, FR-020b, FR-008c).
    */
-  const answerRevealed = awaitingContinue || isCorrection;
+  const answerRevealed = showingFeedback || isCorrection;
   const note =
     lastSubmission === undefined ? null : diagnoseAnswer(question, lastSubmission, answerRevealed);
 
-  const showRetry = !awaitingContinue && lastSubmission !== undefined && !isCorrection;
-  const showCorrection = !awaitingContinue && lastSubmission !== undefined && isCorrection;
+  const showRetry = !showingFeedback && lastSubmission !== undefined && !isCorrection;
+  const showCorrection = !showingFeedback && lastSubmission !== undefined && isCorrection;
 
   /**
    * A correction round holds the learner on a card until they type the right answer (003 FR-024),
@@ -94,7 +99,7 @@ export function QuizScreen() {
         keeps the soft keyboard from closing between cards.
       */}
       <div className="quiz__stage">
-        {awaitingContinue && record ? (
+        {showingFeedback && record ? (
           <FeedbackPanel
             question={question}
             submitted={lastSubmission ?? ''}
@@ -103,6 +108,7 @@ export function QuizScreen() {
             showAttemptCredit={!isCorrection}
             note={note}
             example={example}
+            mustCopy={awaitingCopy}
           />
         ) : (
           <Flashcard
@@ -129,7 +135,7 @@ export function QuizScreen() {
         onChange={setAnswer}
         onSubmit={handleSubmit}
         expectsKana={question.direction === 'romaji-to-kana'}
-        focusKey={`${session.currentIndex}-${submissions.length}-${awaitingContinue}`}
+        focusKey={`${session.currentIndex}-${submissions.length}-${session.status}`}
         actionLabel={awaitingContinue ? continueLabel : 'Check'}
       />
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { initialState, quizReducer, type QuizState } from '../../src/state/quizReducer';
 import { mulberry32 } from '../../src/engine/rng';
 import { findKana } from '../../src/data';
+import { scoreSession } from '../../src/engine/score';
 import type { QuizConfiguration } from '../../src/models/types';
 
 const configuration: QuizConfiguration = {
@@ -24,6 +25,20 @@ const answerCurrent = (state: QuizState, correct: boolean): QuizState => {
   const question = state.session!.questions[state.session!.currentIndex]!;
   return quizReducer(state, { type: 'submit', raw: correct ? question.expectedAnswer : 'zzz', now: 0 });
 };
+
+/** Types the revealed answer, which is what a missed card now waits for before it will advance. */
+const copyAnswer = (state: QuizState): QuizState => {
+  const question = state.session!.questions[state.session!.currentIndex]!;
+  return quizReducer(state, { type: 'submit', raw: question.expectedAnswer, now: 0 });
+};
+
+/**
+ * Finishes the current card whatever happened on it. A missed card is finished by writing the
+ * answer, which advances on its own — so a `continue` after this one is a no-op rather than a
+ * second step, and callers can treat both paths alike.
+ */
+const clearCard = (state: QuizState): QuizState =>
+  state.session?.status === 'awaiting-copy' ? copyAnswer(state) : state;
 
 describe('configuration actions', () => {
   it('switches script while keeping the group selection (FR-009a)', () => {
@@ -112,7 +127,7 @@ describe('answering', () => {
   it('completes after the final card and shows results', () => {
     let state = started();
     for (let i = 0; i < 4; i += 1) {
-      state = quizReducer(answerCurrent(state, i % 2 === 0), { type: 'continue' });
+      state = quizReducer(clearCard(answerCurrent(state, i % 2 === 0)), { type: 'continue' });
     }
     expect(state.status).toBe('results');
     expect(state.session?.status).toBe('complete');
@@ -177,7 +192,7 @@ describe('three attempts per card', () => {
 
   it('reveals the answer once the third attempt is wrong', () => {
     const state = wrong(wrong(wrong(threeTries())));
-    expect(state.session?.status).toBe('awaiting-continue');
+    expect(state.session?.status).toBe('awaiting-copy');
     expect(state.session?.answers[0]?.submissions).toHaveLength(3);
     expect(state.session?.answers[0]?.isCorrect).toBe(false);
   });
@@ -203,7 +218,7 @@ describe('three attempts per card', () => {
   });
 
   it('gives each new card its own fresh set of attempts', () => {
-    const first = quizReducer(wrong(wrong(wrong(threeTries()))), { type: 'continue' });
+    const first = quizReducer(copyAnswer(wrong(wrong(wrong(threeTries())))), { type: 'continue' });
     expect(first.session?.currentIndex).toBe(1);
     expect(first.session?.status).toBe('active');
 
@@ -216,6 +231,82 @@ describe('three attempts per card', () => {
   it('still ignores blank submissions without spending an attempt (FR-023)', () => {
     const state = threeTries();
     expect(quizReducer(state, { type: 'submit', raw: '   ', now: 0 })).toBe(state);
+  });
+});
+
+describe('a missed card is held until the answer is written', () => {
+  const missed = (over = {}): QuizState => answerCurrent(started(over), false);
+
+  it('holds the card instead of offering to advance', () => {
+    const state = missed();
+    expect(state.session?.status).toBe('awaiting-copy');
+    // `continue` only acts on `awaiting-continue`, so the gate is structural rather than a
+    // disabled button the UI has to remember to disable.
+    expect(quizReducer(state, { type: 'continue' })).toBe(state);
+    expect(state.session?.currentIndex).toBe(0);
+  });
+
+  /** Writing the answer is the advance: a missed card must not cost an action a correct one does not. */
+  it('moves to the next card as soon as the answer is typed', () => {
+    const state = copyAnswer(missed());
+    expect(state.session?.currentIndex).toBe(1);
+    expect(state.session?.status).toBe('active');
+  });
+
+  it('ends the quiz when the answer written is the last card\'s', () => {
+    let state = started();
+    for (let i = 0; i < 3; i += 1) {
+      state = quizReducer(clearCard(answerCurrent(state, true)), { type: 'continue' });
+    }
+    const finished = copyAnswer(answerCurrent(state, false));
+    expect(finished.status).toBe('results');
+    expect(finished.session?.status).toBe('complete');
+  });
+
+  it('keeps holding on anything that is not the answer', () => {
+    const state = missed();
+    expect(quizReducer(state, { type: 'submit', raw: 'yyy', now: 0 })).toBe(state);
+    expect(quizReducer(state, { type: 'submit', raw: '   ', now: 0 })).toBe(state);
+  });
+
+  /**
+   * The point of the whole feature: copying the answer must not undo the miss. If it did, a
+   * learner would score full marks on a card they failed, and the mistake list — which is fed by
+   * `firstSubmissionCorrect` — would clear itself the same way (003 SC-004).
+   */
+  it('records nothing and changes no score', () => {
+    const before = missed();
+    const after = copyAnswer(before);
+
+    expect(after.session?.answers).toEqual(before.session?.answers);
+    expect(after.session?.answers[0]?.submissions).toEqual(['zzz']);
+    expect(after.session?.answers[0]?.isCorrect).toBe(false);
+    expect(after.session?.answers[0]?.firstSubmissionCorrect).toBe(false);
+    expect(scoreSession(after.session!).correctCount).toBe(0);
+    expect(scoreSession(after.session!).points).toBe(0);
+  });
+
+  it('does not hold a card that was answered correctly', () => {
+    expect(answerCurrent(started(), true).session?.status).toBe('awaiting-continue');
+  });
+
+  it('holds only after the last attempt, never while attempts remain', () => {
+    const state = answerCurrent(started({ attemptsAllowed: 3 }), false);
+    expect(state.session?.status).toBe('active');
+  });
+
+  /** The clock stops when the card is decided; writing the answer afterwards is not recall time. */
+  it('stops the clock on the final card before the copying, not after', () => {
+    let state = started();
+    for (let i = 0; i < 3; i += 1) {
+      state = quizReducer(clearCard(answerCurrent(state, true)), { type: 'continue' });
+    }
+    const question = state.session!.questions[3]!;
+    const missedFinal = quizReducer(state, { type: 'submit', raw: 'zzz', now: 500 });
+    expect(missedFinal.session?.completedAt).toBe(500);
+
+    const copied = quizReducer(missedFinal, { type: 'submit', raw: question.expectedAnswer, now: 900 });
+    expect(copied.session?.completedAt).toBe(500);
   });
 });
 
@@ -439,7 +530,7 @@ describe('correction rounds (003 FR-024, FR-026)', () => {
   });
 
   it('an ordinary quiz still advances past a wrong answer (FR-041)', () => {
-    let state = answerCurrent(started(), false);
+    let state = copyAnswer(answerCurrent(started(), false));
     state = quizReducer(state, { type: 'continue' });
     expect(state.session?.currentIndex).toBe(1);
   });

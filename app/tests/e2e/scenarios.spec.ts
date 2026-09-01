@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { advance } from './copy-gate';
 
 /**
  * The quickstart.md validation scenarios that can be driven automatically.
@@ -33,7 +34,7 @@ test('V2 — a custom practice set draws only from the selected groups', async (
     seen.push(prompt);
     await page.getByLabel(/Type the/).fill('zzz');
     await page.getByRole('button', { name: 'Check' }).click();
-    await page.getByRole('button', { name: card === 9 ? 'See results' : 'Next card' }).click();
+    await advance(page, card === 9 ? 'See results' : 'Next card');
   }
   // No kana repeats, regardless of the direction each card received (FR-016).
   expect(new Set(seen).size).toBe(10);
@@ -51,7 +52,7 @@ test('V4 — each direction setting produces the right prompts', async ({ page }
     expect(prompt).toMatch(/^[぀-ヿ]+$/);
     await page.getByLabel(/Type the/).fill('zzz');
     await page.getByRole('button', { name: 'Check' }).click();
-    await page.getByRole('button', { name: i === 4 ? 'See results' : 'Next card' }).click();
+    await advance(page, i === 4 ? 'See results' : 'Next card');
   }
 
   await page.getByRole('button', { name: 'Back to home' }).click();
@@ -62,7 +63,7 @@ test('V4 — each direction setting produces the right prompts', async ({ page }
     expect(prompt).toMatch(/^[a-z]+$/);
     await page.getByLabel(/Type the/).fill('zzz');
     await page.getByRole('button', { name: 'Check' }).click();
-    await page.getByRole('button', { name: i === 4 ? 'See results' : 'Next card' }).click();
+    await advance(page, i === 4 ? 'See results' : 'Next card');
   }
 });
 
@@ -92,7 +93,7 @@ test('V7 — practice again reuses the configuration, and settings survive a rel
   for (let i = 0; i < 5; i += 1) {
     await page.getByLabel(/Type the/).fill('zzz');
     await page.getByRole('button', { name: 'Check' }).click();
-    await page.getByRole('button', { name: i === 4 ? 'See results' : 'Next card' }).click();
+    await advance(page, i === 4 ? 'See results' : 'Next card');
   }
 
   await page.getByRole('button', { name: 'Practice again' }).click();
@@ -179,7 +180,7 @@ test('V9 — three attempts let a learner retry before the answer is revealed', 
   await page.getByLabel(/Type the/).press('Enter');
   await expect(page.getByText('✓ Correct')).toBeVisible();
   await expect(page.getByText(/On the third attempt/)).toBeVisible();
-  await page.getByRole('button', { name: 'Next card' }).click();
+  await advance(page, 'Next card');
 
   // Remaining four cards: wrong three times each, so the answer is revealed on the third.
   for (let card = 2; card <= 5; card += 1) {
@@ -193,8 +194,10 @@ test('V9 — three attempts let a learner retry before the answer is revealed', 
       }
     }
     await expect(page.getByText('✕ Incorrect')).toBeVisible();
-    await expect(page.getByText('All 3 attempts used')).toBeVisible();
-    await page.getByRole('button', { name: card === 5 ? 'See results' : 'Next card' }).click();
+    // The third wrong attempt reveals the answer (FR-045) and the card holds there until it is
+    // written — `advance` does the writing, as a learner has to.
+    await expect(page.getByText('Type it to continue.')).toBeVisible();
+    await advance(page, card === 5 ? 'See results' : 'Next card');
   }
 
   // One card solved on attempt 3 = 1/3 point out of 5 cards = 7%.
@@ -282,7 +285,7 @@ test('V10 — the quiz is timed silently and the time appears only in the result
     await page.getByLabel(/Type the/).press('Enter');
     // Spec acceptance scenario 1 covers the feedback panel as well as the card.
     await showsNoTimer('the feedback panel');
-    await page.getByRole('button', { name: i === 4 ? 'See results' : 'Next card' }).click();
+    await advance(page, i === 4 ? 'See results' : 'Next card');
   }
   const wallClock = Date.now() - started;
 
@@ -311,7 +314,7 @@ test('V11 — Enter on the results screen starts another round', async ({ page }
     for (let i = 0; i < 5; i += 1) {
       await page.getByLabel(/Type the/).fill('zzz');
       await page.getByLabel(/Type the/).press('Enter');
-      await page.getByRole('button', { name: i === 4 ? 'See results' : 'Next card' }).click();
+      await advance(page, i === 4 ? 'See results' : 'Next card');
     }
     await expect(page.getByRole('heading', { name: 'Quiz complete' })).toBeVisible();
   };

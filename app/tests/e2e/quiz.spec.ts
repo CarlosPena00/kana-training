@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { advance } from './copy-gate';
 
 /**
  * Covers the acceptance criteria that cannot be asserted headlessly:
@@ -21,7 +22,7 @@ test('the default configuration starts a quiz and reaches results', async ({ pag
     await page.getByLabel(/Type the/).fill('zzz');
     await page.getByRole('button', { name: 'Check' }).click();
     await expect(page.getByText('✕ Incorrect')).toBeVisible();
-    await page.getByRole('button', { name: card === 10 ? 'See results' : 'Next card' }).click();
+    await advance(page, card === 10 ? 'See results' : 'Next card');
   }
 
   await expect(page.getByRole('heading', { name: 'Quiz complete' })).toBeVisible();
@@ -101,6 +102,15 @@ test('a whole quiz can be completed with the keyboard alone (SC-009)', async ({ 
   await page.keyboard.type('zzz');
   await page.keyboard.press('Enter');
   await expect(page.getByText('✕ Incorrect')).toBeVisible();
+
+  // A missed card holds until the answer is written, so Enter alone goes nowhere...
+  await page.keyboard.press('Enter');
+  await expect(page.getByText(/Question 2 \/ 10/)).toBeHidden();
+
+  // ...and writing it is possible with the keyboard alone, like everything else here. Writing it
+  // is also the advance: no second press, so a missed card costs no more than a correct one.
+  const answer = ((await page.locator('.feedback__correct-answer').textContent()) ?? '').trim();
+  await page.keyboard.type(answer);
   await page.keyboard.press('Enter');
   await expect(page.getByText(/Question 2 \/ 10/)).toBeVisible();
 });
@@ -126,7 +136,7 @@ test('makes no network request beyond its own assets (Constitution Principle I, 
   await page.getByRole('button', { name: 'Start quiz' }).click();
   await page.getByLabel(/Type the/).fill('zzz');
   await page.getByRole('button', { name: 'Check' }).click();
-  await page.getByRole('button', { name: 'Next card' }).click();
+  await advance(page, 'Next card');
 
   expect(external).toEqual([]);
 });
@@ -174,7 +184,7 @@ test('the answer field survives the whole quiz without being remounted (keyboard
     expect(await stillTagged(), `input was remounted showing feedback on card ${card}`).toBe(true);
     await expect(page.locator('#answer-input')).toBeFocused();
 
-    await page.getByRole('button', { name: 'Next card' }).click();
+    await advance(page, 'Next card');
     expect(await stillTagged(), `input was remounted advancing to card ${card + 1}`).toBe(true);
   }
 

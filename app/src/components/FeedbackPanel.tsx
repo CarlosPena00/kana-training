@@ -24,6 +24,11 @@ interface Props {
    * actually reading.
    */
   readonly example?: KanaExample | null | undefined;
+  /**
+   * Whether the card is being held until the learner types the answer shown here. The instruction
+   * says what to do; the card cannot advance without it, so nothing else needs to.
+   */
+  readonly mustCopy?: boolean | undefined;
 }
 
 const ORDINAL = ['first', 'second', 'third'] as const;
@@ -43,6 +48,7 @@ export function FeedbackPanel({
   showAttemptCredit = true,
   note,
   example,
+  mustCopy = false,
 }: Props) {
   const { kana } = question;
   const attemptIndex = Math.min(attemptsUsed, ORDINAL.length) - 1;
@@ -85,9 +91,18 @@ export function FeedbackPanel({
 
       {!isCorrect && example && <WordExample example={example} />}
 
-      {showAttemptCredit && attemptsUsed > 1 && attemptIndex >= 0 && (
+      {mustCopy && (
+        <p className="feedback__copy-prompt" role="status">
+          Type it to continue.
+        </p>
+      )}
+
+      {/* Only when it says something: on a correct card it reports which attempt earned what. On
+          a missed one, "All 3 attempts used" adds nothing the verdict has not already said, and
+          it costs the panel a line it needs for the answer, the example and the instruction. */}
+      {showAttemptCredit && isCorrect && attemptsUsed > 1 && attemptIndex >= 0 && (
         <p className="feedback__attempt">
-          {isCorrect ? `On the ${ORDINAL[attemptIndex]} attempt — ${CREDIT[attemptIndex]}` : `All ${attemptsUsed} attempts used`}
+          On the {ORDINAL[attemptIndex]} attempt — {CREDIT[attemptIndex]}
         </p>
       )}
     </div>

@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { advance, clearCopyGate } from './copy-gate';
 import { HIRAGANA, KATAKANA } from '../../src/data';
 
 /**
@@ -23,7 +24,10 @@ const missCards = async (page: Page, count: number) => {
   for (let card = 1; card <= count; card += 1) {
     await page.getByLabel(/Type the/).fill('zzz');
     await page.getByRole('button', { name: 'Check' }).click();
-    await page.getByRole('button', { name: card === count ? 'Quit quiz' : 'Next card' }).click();
+    // Writing the answer both satisfies the held card and moves on, so the loop needs nothing
+    // else; leaving the quiz is a separate act, once the last miss is recorded.
+    await clearCopyGate(page);
+    if (card === count) await page.getByRole('button', { name: 'Quit quiz' }).click();
   }
 };
 
@@ -168,7 +172,7 @@ test('round case 14: a wrong answer reveals the answer and keeps it visible (US2
   // claim any — it would contradict the results screen two taps later (FR-026, FR-029a).
   await expect(page.getByText(/point/)).toBeHidden();
   await expect(page.getByText(/attempt/)).toBeHidden();
-  await page.getByRole('button', { name: 'See results' }).click();
+  await advance(page, 'See results');
 
   // Scored on the first submission: wrong on sight is wrong, however it ended (FR-029a, SC-005a).
   await expect(page.getByText('0 / 1 correct')).toBeVisible();
@@ -207,7 +211,7 @@ test('a correction round mixes both scripts whatever is selected (US2, FR-020a)'
     seen.push((await page.locator('.flashcard__prompt').textContent()) ?? '');
     await page.getByLabel(/Type the/).fill('nu');
     await page.getByRole('button', { name: 'Check' }).click();
-    await page.getByRole('button', { name: card === 2 ? 'See results' : 'Next card' }).click();
+    await advance(page, card === 2 ? 'See results' : 'Next card');
   }
   expect(seen.sort()).toEqual(['ぬ', 'ヌ']);
 });
@@ -270,7 +274,7 @@ test('a kana clears after three correct first answers in ordinary quizzes (US3, 
       const prompt = (await page.locator('.flashcard__prompt').textContent()) ?? '';
       await page.getByLabel(/Type the/).fill(NA_ROW[prompt] ?? 'zzz');
       await page.getByRole('button', { name: 'Check' }).click();
-      await page.getByRole('button', { name: card === 5 ? 'See results' : 'Next card' }).click();
+      await advance(page, card === 5 ? 'See results' : 'Next card');
     }
     await expectStreak(page, 'ぬ', round === 3 ? null : round);
     await page.getByRole('button', { name: 'Back to home' }).click();
@@ -287,7 +291,7 @@ test('a broken streak restarts from zero (US3, FR-008)', async ({ page }) => {
 
   await page.getByLabel(/Type the/).fill('nu');
   await page.getByRole('button', { name: 'Check' }).click();
-  await page.getByRole('button', { name: 'See results' }).click();
+  await advance(page, 'See results');
   await expectStreak(page, 'ぬ', 1);
 
   await page.getByRole('button', { name: 'Back to your mistakes' }).click();
@@ -320,7 +324,7 @@ test('wrong-then-copy never clears an entry (US3, SC-004)', async ({ page }) => 
     // Copy the revealed answer, exactly as the round demands.
     await page.getByLabel(/Type the/).fill('nu');
     await page.getByRole('button', { name: 'Check' }).click();
-    await page.getByRole('button', { name: 'See results' }).click();
+    await advance(page, 'See results');
 
     await expectStreak(page, 'ぬ', 0);
     await page.getByRole('button', { name: 'Back to your mistakes' }).click();
@@ -338,7 +342,7 @@ test('progress toward clearing is shown live on the row (US3, FR-015)', async ({
 
   await page.getByLabel(/Type the/).fill('nu');
   await page.getByRole('button', { name: 'Check' }).click();
-  await page.getByRole('button', { name: 'See results' }).click();
+  await advance(page, 'See results');
   await page.getByRole('button', { name: 'Back to your mistakes' }).click();
 
   await expect(page.getByText(/1 of 3 — 2 more in a row to clear/)).toBeVisible();

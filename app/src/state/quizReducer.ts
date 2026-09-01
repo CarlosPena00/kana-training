@@ -14,6 +14,7 @@ import type {
   QuizConfiguration,
   QuizSession,
   Script,
+  SessionStatus,
 } from '../models/types';
 
 /**
@@ -116,6 +117,21 @@ function startCorrectionRound(
   return { ...state, status: 'quizzing', session, error: null };
 }
 
+/**
+ * Moves off the current card, or ends the quiz if it was the last one.
+ *
+ * Shared by the two ways a card is finished — pressing continue after a correct answer, and
+ * writing the answer a missed card is holding for — so neither can drift into a different idea of
+ * what "the next card" means.
+ */
+function advanceCard(state: QuizState, session: QuizSession): QuizState {
+  const nextIndex = session.currentIndex + 1;
+  if (nextIndex >= session.questions.length) {
+    return { ...state, status: 'results', session: { ...session, status: 'complete' } };
+  }
+  return { ...state, session: { ...session, currentIndex: nextIndex, status: 'active' } };
+}
+
 export function quizReducer(state: QuizState, action: QuizAction): QuizState {
   switch (action.type) {
     case 'set-script':
@@ -156,12 +172,27 @@ export function quizReducer(state: QuizState, action: QuizAction): QuizState {
 
     case 'submit': {
       const session = state.session;
-      if (!session || session.status !== 'active') return state;
+      if (!session) return state;
       // A blank submission is not a transition at all: no advance, no record (FR-023).
       if (isBlank(action.raw)) return state;
 
       const question = session.questions[session.currentIndex];
       if (!question) return state;
+
+      /**
+       * Copying the revealed answer. The card was graded when its attempts ran out, and this
+       * types what is already on screen — so it is not an attempt: nothing is recorded, no score
+       * moves, and a miss cannot become a hit (the same guarantee 003 SC-004 needed). Anything
+       * other than the answer simply leaves the card where it is.
+       */
+      if (session.status === 'awaiting-copy') {
+        if (!checkAnswer(question, action.raw)) return state;
+        // Writing the answer *is* the advance. Asking for a separate continue afterwards would
+        // cost a missed card one more action than a correct one, for no decision in between.
+        return advanceCard(state, session);
+      }
+
+      if (session.status !== 'active') return state;
 
       const existing = session.answers.find((record) => record.questionIndex === session.currentIndex);
       const submissions = [...(existing?.submissions ?? []), action.raw];
@@ -195,7 +226,17 @@ export function quizReducer(state: QuizState, action: QuizAction): QuizState {
         session.mode === 'correction'
           ? Number.POSITIVE_INFINITY
           : session.configuration.attemptsAllowed - submissions.length;
-      const status = !isCorrect && attemptsLeft > 0 ? 'active' : 'awaiting-continue';
+
+      /**
+       * Out of attempts and still wrong: the answer is revealed and the card holds until the
+       * learner writes it (`awaiting-copy`). A correct answer needs no such step, and a correction
+       * round never reaches one — it holds the card `active` instead, keeping the prompt on screen.
+       */
+      const status: SessionStatus = isCorrect
+        ? 'awaiting-continue'
+        : attemptsLeft > 0
+          ? 'active'
+          : 'awaiting-copy';
 
       // The clock stops on the final answer, not when the learner leaves the feedback panel
       // (FR-048). Every other card's feedback dwell ends when the learner moves on; the last
@@ -203,7 +244,9 @@ export function quizReducer(state: QuizState, action: QuizAction): QuizState {
       const isFinalCard = session.currentIndex === session.questions.length - 1;
       // In a correction round the last card is not finished until it is right, so a wrong answer
       // on it must not stop the clock.
-      const cardIsFinished = session.mode === 'correction' ? isCorrect : status === 'awaiting-continue';
+      // The clock stops when the card is decided, not when the learner finishes copying: the
+      // answer was already known at this moment, and time spent writing it is not recall time.
+      const cardIsFinished = session.mode === 'correction' ? isCorrect : status !== 'active';
       const completedAt = cardIsFinished && isFinalCard ? action.now : session.completedAt;
 
       return { ...state, session: { ...session, answers, status, completedAt } };
@@ -212,12 +255,7 @@ export function quizReducer(state: QuizState, action: QuizAction): QuizState {
     case 'continue': {
       const session = state.session;
       if (!session || session.status !== 'awaiting-continue') return state;
-
-      const nextIndex = session.currentIndex + 1;
-      if (nextIndex >= session.questions.length) {
-        return { ...state, status: 'results', session: { ...session, status: 'complete' } };
-      }
-      return { ...state, session: { ...session, currentIndex: nextIndex, status: 'active' } };
+      return advanceCard(state, session);
     }
 
     case 'practice-again':

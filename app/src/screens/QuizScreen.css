@@ -20,7 +20,10 @@
      content otherwise overflows past the scroll origin, where no scrolling can reach it. Browsers
      that do not know the keyword keep the plain `center` above. */
   justify-content: safe center;
-  height: min(42vh, 18rem);
+  /* Sized for the fullest panel there is — a confusion pair, an example word and the instruction
+     to write the answer — while leaving the input and the button below it on screen at 320x640,
+     the narrowest viewport SC-005 requires. */
+  height: min(47vh, 20rem);
   padding: var(--space-5) var(--space-4);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);

@@ -81,7 +81,17 @@ export interface AnswerRecord {
   readonly firstSubmissionCorrect: boolean;
 }
 
-export type SessionStatus = 'active' | 'awaiting-continue' | 'complete';
+/**
+ * `awaiting-copy` is a wrong card whose answer has been revealed and which will not advance until
+ * the learner types that answer. The card is already graded when it enters this state: the copying
+ * step records nothing, changes no score, and cannot turn a miss into a hit — it exists so the
+ * right answer is written once by the person who got it wrong, rather than read and forgotten.
+ *
+ * It is the ordinary quiz's version of what a correction round does by staying `active`
+ * (003 FR-023, FR-024). The two differ in what stays on screen — a correction round keeps the
+ * prompt, this keeps the whole feedback panel — which is why it is a state of its own.
+ */
+export type SessionStatus = 'active' | 'awaiting-copy' | 'awaiting-continue' | 'complete';
 
 /**
  * What kind of round this is. `correction` changes exactly two behaviors — the card does not

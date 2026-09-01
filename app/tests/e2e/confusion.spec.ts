@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { advance } from './copy-gate';
 
 /**
  * Feature 004, the parts only a rendered page can prove: that the two characters are legible and
@@ -44,7 +45,7 @@ const answerCardShowing = async (page: Page, prompt: string, answer: string, att
       await page.getByLabel(/Type the/).fill('zzz');
       await page.getByRole('button', { name: 'Check' }).click();
     }
-    await page.getByRole('button', { name: card === 5 ? 'See results' : 'Next card' }).click();
+    await advance(page, card === 5 ? 'See results' : 'Next card');
   }
   return false;
 };
@@ -106,7 +107,7 @@ test('case 30: the note is announced as one statement and passes the audit', asy
   expect(await answerCardShowing(page, 'ろ', 'ru')).toBe(true);
 
   const note = page.locator('.answer-note');
-  await expect(note).toHaveAttribute('aria-label', /You mixed these up.*wrote る.*answer was ろ/);
+  await expect(note).toHaveAttribute('aria-label', /You mixed these up.*answer was ろ.*wrote る/);
 
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
   expect(results.violations).toEqual([]);
@@ -199,7 +200,7 @@ test('the script note names the alphabet, and is still wrong', async ({ page }) 
     }
     await page.getByLabel(/Type the/).fill('zzz');
     await page.getByRole('button', { name: 'Check' }).click();
-    await page.getByRole('button', { name: card === 5 ? 'See results' : 'Next card' }).click();
+    await advance(page, card === 5 ? 'See results' : 'Next card');
   }
   throw new Error('the ro card never appeared');
 });

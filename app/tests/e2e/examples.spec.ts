@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { advance } from './copy-gate';
 
 /**
  * The example word, in a rendered page: that it appears when a card is missed, that it never
@@ -39,7 +40,7 @@ const answerCardShowing = async (page: Page, prompt: string, answer: string, att
       await page.getByLabel(/Type the/).fill('zzz');
       await page.getByRole('button', { name: 'Check' }).click();
     }
-    await page.getByRole('button', { name: card === 5 ? 'See results' : 'Next card' }).click();
+    await advance(page, card === 5 ? 'See results' : 'Next card');
   }
   return false;
 };
@@ -49,6 +50,9 @@ test('a missed card shows a word that really uses the character', async ({ page 
   await quizOn(page, 'な', 'Kana → Romaji');
 
   expect(await answerCardShowing(page, 'ね', 'zzz')).toBe(true);
+
+  // One screen: the verdict, the answer, the word and the instruction to write it, together.
+  await expect(page.locator('.feedback__copy-prompt')).toBeVisible();
 
   const example = page.locator('.word-example');
   await expect(example).toBeVisible();

@@ -44,9 +44,10 @@
   color: var(--color-text-muted);
 }
 
-/* Correction rounds: the instruction that goes with the still-visible correct answer. */
+/* The instruction that goes with the still-visible correct answer, on a card that will not
+   advance until it is written. No margin of its own: the panel's own gap already spaces it, and
+   this line lands in the tallest panel there is — a confusion pair with an example under it. */
 .feedback__copy-prompt {
-  margin-top: var(--space-2);
   font-weight: 600;
   color: var(--color-text);
 }
