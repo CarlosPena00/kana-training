@@ -1,5 +1,7 @@
 import { AnswerNote } from './AnswerNote';
+import { WordExample } from './WordExample';
 import './FeedbackPanel.css';
+import type { KanaExample } from '../engine/examples';
 import type { AnswerNote as Note, QuizQuestion } from '../models/types';
 
 interface Props {
@@ -16,6 +18,12 @@ interface Props {
   readonly showAttemptCredit?: boolean | undefined;
   /** What went wrong beyond "wrong", when the answer was itself a real reading (feature 004). */
   readonly note?: Note | null | undefined;
+  /**
+   * A word using the missed character. Shown only on a wrong answer: after a correct one it would
+   * be a reward nobody asked for, competing with the verdict for the moment the learner is
+   * actually reading.
+   */
+  readonly example?: KanaExample | null | undefined;
 }
 
 const ORDINAL = ['first', 'second', 'third'] as const;
@@ -34,9 +42,19 @@ export function FeedbackPanel({
   attemptsUsed,
   showAttemptCredit = true,
   note,
+  example,
 }: Props) {
   const { kana } = question;
   const attemptIndex = Math.min(attemptsUsed, ORDINAL.length) - 1;
+
+  /**
+   * A confusion pair states everything this panel would otherwise state twice: it names the kana
+   * the learner wrote and the one that was wanted, each with its reading, under labels that say
+   * which is which. So both the mapping line and the answer detail step aside for it — FR-031's
+   * prompt, learner's answer and correct answer are all still on screen, rendered once instead of
+   * twice, and the room that buys goes to the example word.
+   */
+  const pairSaysIt = note?.kind === 'kana-confusion';
 
   return (
     <div className={`feedback feedback--${isCorrect ? 'correct' : 'incorrect'}`} aria-live="assertive">
@@ -44,7 +62,7 @@ export function FeedbackPanel({
 
       {/* A confusion pair already shows both characters with their readings, so repeating the
           mapping here would duplicate it and cost height the stage does not have to give. */}
-      {note?.kind !== 'kana-confusion' && (
+      {!pairSaysIt && (
         <p className="feedback__mapping">
           <span lang="ja">{kana.kana}</span>
           <span aria-hidden="true"> — </span>
@@ -52,7 +70,7 @@ export function FeedbackPanel({
         </p>
       )}
 
-      {!isCorrect && (
+      {!isCorrect && !pairSaysIt && (
         <p className="feedback__detail">
           Your answer: <span className="feedback__submitted">{submitted.trim() === '' ? '—' : submitted}</span>
           <br />
@@ -64,6 +82,8 @@ export function FeedbackPanel({
       )}
 
       {note && <AnswerNote note={note} answerRevealed />}
+
+      {!isCorrect && example && <WordExample example={example} />}
 
       {showAttemptCredit && attemptsUsed > 1 && attemptIndex >= 0 && (
         <p className="feedback__attempt">

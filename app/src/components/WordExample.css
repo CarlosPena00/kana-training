@@ -1,0 +1,34 @@
+/* One line under the feedback, kept small on purpose: it is the last thing in a box of fixed
+   height — the verdict and the correct answer come first — and the least worth scrolling for when
+   the panel runs tall. The gap between the panel's children is its only spacing; a margin of its
+   own would just add to that. */
+
+.word-example {
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+.word-example__label {
+  font-weight: 600;
+}
+
+.word-example__word {
+  font-size: var(--text-lg);
+  color: var(--color-text);
+}
+
+/* The highlight. `mark` defaults to a yellow that belongs to no theme here, so both colours are
+   set from tokens and the contrast holds in dark mode too. */
+.word-example__hit {
+  padding: 0 0.1em;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.word-example__gloss {
+  white-space: nowrap;
+}

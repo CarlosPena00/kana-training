@@ -190,3 +190,32 @@ export type AnswerNote =
   | { readonly kind: 'spelling'; readonly typed: string; readonly canonical: string }
   /** The right character in the wrong alphabet. Both kana always share a reading. */
   | { readonly kind: 'script'; readonly wrote: Kana; readonly wanted: Kana };
+
+/**
+ * A real word — or, where no word will do, a short phrase — the app can show a learner as an
+ * example of a character in use.
+ *
+ * Data-only, like `Kana`: a word knows its spelling and its reading and nothing about which card
+ * it might illustrate. Which kana a word demonstrates is derived from the spelling itself, not
+ * stored here, so the two can never drift apart.
+ *
+ * `romaji` is the reading of the whole word, not a concatenation of its characters' readings: a
+ * long vowel is written the way the word is actually said.
+ *
+ * `meaning` is English, and short by design — it is shown beside a kana the learner just missed,
+ * where a gloss competes for attention with the character itself.
+ */
+export interface ExampleWord {
+  /** The spelling. Holds a phrase, spaces and all, when `kind` says so. */
+  readonly word: string;
+  readonly romaji: string;
+  readonly meaning: string;
+  readonly script: Script;
+  /**
+   * Whether this entry is a single word or a phrase. Stored rather than inferred from a space,
+   * because that would make the distinction a spelling accident, and the two are not
+   * interchangeable on screen: a phrase is longer, needs more room, and illustrates a character
+   * that has no word of its own — を, which exists only as a particle.
+   */
+  readonly kind: 'word' | 'phrase';
+}

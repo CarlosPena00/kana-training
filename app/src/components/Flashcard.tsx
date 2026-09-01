@@ -1,4 +1,6 @@
 import { AnswerNote } from './AnswerNote';
+import { WordExample } from './WordExample';
+import type { KanaExample } from '../engine/examples';
 import type { AnswerNote as Note } from '../models/types';
 import './Flashcard.css';
 
@@ -25,6 +27,12 @@ interface Props {
   readonly note?: Note | null | undefined;
   /** False while attempts remain: the note then shows only what the learner wrote (FR-015a). */
   readonly answerRevealed?: boolean | undefined;
+  /**
+   * A word using the missed character, for the correction round — where the card stays open with
+   * the answer visible, so an example gives nothing away. Never passed while attempts remain: a
+   * word containing the answer would be a free hint (FR-015a).
+   */
+  readonly example?: KanaExample | null | undefined;
 }
 
 /** The card is the visual focus of the quiz screen (FR-020). */
@@ -36,6 +44,7 @@ export function Flashcard({
   correction,
   note,
   answerRevealed = false,
+  example,
 }: Props) {
   return (
     <>
@@ -69,6 +78,8 @@ export function Flashcard({
       )}
 
       {note && <AnswerNote note={note} answerRevealed={answerRevealed} />}
+
+      {example && <WordExample example={example} />}
 
       {retry && (
         <p className="flashcard__retry" role="status" aria-live="assertive">

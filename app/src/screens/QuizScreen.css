@@ -5,19 +5,29 @@
 }
 
 /* Fixed height, whatever it is showing: the prompt, a retry notice, or the result. Nothing below
-   this box moves during a card, so the keyboard is never dismissed by a reflow. */
+   this box moves during a card, so the keyboard is never dismissed by a reflow.
+
+   A real height rather than a minimum, and the difference matters: as a minimum it grew whenever
+   the feedback ran tall — a confusion pair with an attempt line already did, and an example word
+   under them makes it ordinary — and growing it pushes the answer input down, which is exactly
+   the reflow FR-013 exists to prevent. Content that does not fit now scrolls inside the card. */
 .quiz__stage {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: min(42vh, 18rem);
+  /* `safe` keeps the first line reachable when the content is taller than the box: centred flex
+     content otherwise overflows past the scroll origin, where no scrolling can reach it. Browsers
+     that do not know the keyword keep the plain `center` above. */
+  justify-content: safe center;
+  height: min(42vh, 18rem);
   padding: var(--space-5) var(--space-4);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .quiz__quit {

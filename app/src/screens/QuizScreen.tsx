@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Flashcard } from '../components/Flashcard';
 import { AnswerInput } from '../components/AnswerInput';
 import { FeedbackPanel } from '../components/FeedbackPanel';
@@ -6,6 +6,7 @@ import { ProgressBar } from '../components/ProgressBar';
 import { useQuiz } from '../state/QuizContext';
 import { scoreSession } from '../engine/score';
 import { diagnoseAnswer } from '../engine/diagnose';
+import { pickExample } from '../engine/examples';
 import './QuizScreen.css';
 
 export function QuizScreen() {
@@ -15,9 +16,20 @@ export function QuizScreen() {
   const [answer, setAnswer] = useState('');
 
   const session = state.session;
-  if (!session) return null;
+  const question = session?.questions[session.currentIndex];
 
-  const question = session.questions[session.currentIndex];
+  /**
+   * One example word per card, drawn once and kept: re-rolling it on every keystroke would make
+   * the panel flicker through the word list while the learner reads it. Keyed on the character
+   * rather than the card index so a correction round, which asks the same kana again later, still
+   * gets a fresh word.
+   *
+   * Computed before the guards below because a hook cannot sit after an early return.
+   */
+  const kana = question?.kana;
+  const example = useMemo(() => (kana ? pickExample(kana) : null), [kana]);
+
+  if (!session) return null;
   if (!question) return null;
 
   const awaitingContinue = session.status === 'awaiting-continue';
@@ -90,6 +102,7 @@ export function QuizScreen() {
             attemptsUsed={submissions.length}
             showAttemptCredit={!isCorrection}
             note={note}
+            example={example}
           />
         ) : (
           <Flashcard
@@ -104,6 +117,9 @@ export function QuizScreen() {
             scriptLabel={scriptLabel}
             note={note}
             answerRevealed={answerRevealed}
+            /* Only once the answer is revealed — which on an open card means a correction round.
+               While attempts remain, a word containing the answer would give it away. */
+            example={showCorrection ? example : null}
           />
         )}
       </div>

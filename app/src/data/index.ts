@@ -6,6 +6,7 @@ import { KATAKANA } from './katakana';
 export { GROUPS, SECTION_LABELS } from './groups';
 export { HIRAGANA } from './hiragana';
 export { KATAKANA } from './katakana';
+export { EXAMPLE_WORDS } from './words';
 
 /** Lookup only — no quiz logic lives in the data layer. */
 export function kanaForScript(script: Script): readonly Kana[] {
