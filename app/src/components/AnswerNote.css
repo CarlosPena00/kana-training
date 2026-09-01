@@ -67,3 +67,19 @@
   font-size: var(--text-2xl);
   vertical-align: middle;
 }
+
+/* The learner's own answer is tinted with the incorrect colour so the eye lands on the answer
+   first. The "You wrote" label still carries the meaning, so colour is only reinforcing it
+   (WCAG 1.4.1). */
+.answer-note__side--wrote .answer-note__label,
+.answer-note__side--wrote .answer-note__kana,
+.answer-note__side--wrote .answer-note__romaji {
+  color: var(--color-incorrect);
+}
+
+/* The pair is the answer; the example word beneath it is a separate thought. The panel's own gap
+   is too tight to say that, so the pair carries the extra room itself — and only the pair, so the
+   one-line notes keep the compact spacing the stage is sized for. */
+.answer-note--pair {
+  margin-bottom: var(--space-4);
+}

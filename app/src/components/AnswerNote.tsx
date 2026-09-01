@@ -71,24 +71,25 @@ export function AnswerNote({ note, answerRevealed }: Props) {
     <div
       className="answer-note answer-note--pair"
       role="status"
-      aria-label={`You mixed these up. You wrote ${note.wrote.kana}, which is ${note.wrote.romaji}. The answer was ${note.wanted.kana}, which is ${note.wanted.romaji}.`}
+      aria-label={`You mixed these up. The answer was ${note.wanted.kana}, which is ${note.wanted.romaji}. You wrote ${note.wrote.kana}, which is ${note.wrote.romaji}.`}
     >
+      {/* The answer comes first: it is what the learner needs to take away from the card. */}
       <div className="answer-note__pair" aria-hidden="true">
         <span className="answer-note__side">
           {/* The label carries the meaning; nothing here depends on which side it is on. */}
-          <span className="answer-note__label">You wrote</span>
-          <span className="answer-note__kana" lang="ja">
-            {note.wrote.kana}
-          </span>
-          <span className="answer-note__romaji">{note.wrote.romaji}</span>
-        </span>
-
-        <span className="answer-note__side">
           <span className="answer-note__label">The answer</span>
           <span className="answer-note__kana" lang="ja">
             {note.wanted.kana}
           </span>
           <span className="answer-note__romaji">{note.wanted.romaji}</span>
+        </span>
+
+        <span className="answer-note__side answer-note__side--wrote">
+          <span className="answer-note__label">You wrote</span>
+          <span className="answer-note__kana" lang="ja">
+            {note.wrote.kana}
+          </span>
+          <span className="answer-note__romaji">{note.wrote.romaji}</span>
         </span>
       </div>
     </div>
